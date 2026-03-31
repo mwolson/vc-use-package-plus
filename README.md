@@ -19,8 +19,6 @@ few fixes that matter in real configs:
 Load this package before the rest of your `use-package :vc` declarations:
 
 ```elisp
-(require 'package)
-(package-initialize)
 (require 'use-package)
 
 (setq use-package-vc-prefer-newest t)
@@ -43,23 +41,33 @@ monorepo or otherwise need an explicit compile set.
 ## Bootstrap Flow
 
 If you want a command-line bootstrap that installs, upgrades, and byte-compiles
-packages before your first real Emacs session, keep the `use-package vcupp`
-declaration from the quickstart in your config. The wrapper examples below then
-load the installed scripts from the default package directory,
-`~/.emacs.d/elpa/vcupp/`.
+packages before your first real Emacs session, the wrapper examples below
+bootstrap `vcupp` themselves before calling its batch helpers. If you customize
+`package-user-dir`, do that before the `use-package vcupp` form.
 
 Install and upgrade everything:
 
 ```elisp
 ;; scripts/bootstrap-install.el
+;; If you use an XDG init dir instead of `~/.emacs.d`:
+;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+(require 'package)
+(package-initialize)
+(require 'use-package)
+(setq use-package-vc-prefer-newest t)
+
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :demand t)
+
+(require 'vcupp-install-packages)
+
 (setq vcupp-batch-args
       '(:load-files ("early-init.el" "init.el")
         :setup-forms ((setq use-package-always-ensure t)
                       (setq package-native-compile t))))
 
-(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/install-packages.el"))
-;; If you customized `package-user-dir' to an XDG path:
-;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/install-packages.el"))
+(vcupp-install-packages vcupp-batch-args)
 ```
 
 Run it with:
@@ -74,12 +82,23 @@ Recommended: use `compile-angel` for broader coverage:
 
 ```elisp
 ;; scripts/bootstrap-native-comp.el
+;; If you use an XDG init dir instead of `~/.emacs.d`:
+;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+(require 'package)
+(package-initialize)
+(require 'use-package)
+(setq use-package-vc-prefer-newest t)
+
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :demand t)
+
+(require 'vcupp-native-comp)
+
 (setq vcupp-batch-args
       '(:load-files ("early-init.el" "init.el")))
 
-(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/native-comp-all.el"))
-;; If you customized `package-user-dir' to an XDG path:
-;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/native-comp-all.el"))
+(vcupp-native-comp-all vcupp-batch-args)
 ```
 
 Run it with:
@@ -99,14 +118,25 @@ Alternative: disable `compile-angel` and compile an explicit file list:
 
 ```elisp
 ;; scripts/bootstrap-native-comp.el
+;; If you use an XDG init dir instead of `~/.emacs.d`:
+;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+(require 'package)
+(package-initialize)
+(require 'use-package)
+(setq use-package-vc-prefer-newest t)
+
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :demand t)
+
+(require 'vcupp-native-comp)
+
 (setq vcupp-batch-args
       '(:load-files ("early-init.el" "init.el")
         :compile-files ("settings.el" "early-init.el" "init.el")
         :use-compile-angel nil))
 
-(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/native-comp-all.el"))
-;; If you customized `package-user-dir' to an XDG path:
-;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/native-comp-all.el"))
+(vcupp-native-comp-all vcupp-batch-args)
 ```
 
 The batch helper also accepts a single plist when you need custom paths,
