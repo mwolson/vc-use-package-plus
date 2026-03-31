@@ -5,7 +5,8 @@ few fixes that matter in real configs:
 
 - Requires Emacs 30.1 or newer.
 - Monorepo installs honor `:main-file`, `:lisp-dir`, and an added
-  `:compile-files` keyword.
+  `:compile-files` keyword, which accepts glob patterns such as
+  `"extensions/*.el"`.
 - `package-vc` only scans selected files for dependencies instead of walking an
   entire monorepo.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
@@ -99,6 +100,32 @@ See [`vcupp-batch.el`](vcupp-batch.el),
 [`scripts/install-packages.el`](scripts/install-packages.el), and
 [`scripts/native-comp-all.el`](scripts/native-comp-all.el) for the supported
 plist keys and defaults.
+
+## Keywords
+
+`vcupp` keeps the existing `use-package :vc` keyword set and adds one new
+keyword for compile target selection.
+
+Built-in `use-package :vc` keywords:
+
+- `:url`: Repository URL.
+- `:branch`: Branch name to check out.
+- `:lisp-dir`: Subdirectory containing the package's elisp.
+- `:main-file`: Main entry file for the package.
+- `:vc-backend`: VCS backend symbol.
+- `:rev`: Revision selector. `use-package-vc-prefer-newest` controls the
+  default behavior for `nil`.
+- `:shell-command`: Shell command run after checkout.
+- `:make`: Build command run after checkout.
+- `:ignored-files`: Files to exclude from packaging.
+
+Added by `vcupp`:
+
+- `:compile-files`: Explicit set of `.el` files to scan and compile. This may
+  be a single file or a list of MELPA-style glob patterns such as `"*.el"` or
+  `"extensions/*.el"`. `vcupp` combines these with `:main-file`, respects
+  `:lisp-dir`, and limits dependency scanning, byte-compilation, and native
+  compilation to the selected files.
 
 ## License
 
