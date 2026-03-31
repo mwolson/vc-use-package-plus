@@ -1,6 +1,6 @@
-# vc-use-package-plus
+# vcupp (vc-use-package-plus)
 
-`vc-use-package-plus` extends Emacs's built-in `use-package :vc` support with a
+`vcupp` extends Emacs's built-in `use-package :vc` support with a
 few fixes that matter in real configs:
 
 - Monorepo installs honor `:main-file`, `:lisp-dir`, and an added
@@ -26,8 +26,8 @@ Load this package before the rest of your `use-package :vc` declarations:
 
 (setq use-package-vc-prefer-newest t)
 
-(use-package vc-use-package-plus
-  :vc (:url "https://github.com/mwolson/vc-use-package-plus")
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
   :demand t)
 
 (use-package prescient
@@ -37,7 +37,7 @@ Load this package before the rest of your `use-package :vc` declarations:
   :demand t)
 ```
 
-`vc-use-package-plus` adds `:compile-files` for packages that live in a
+`vcupp` adds `:compile-files` for packages that live in a
 monorepo or otherwise need an explicit compile set.
 
 ## Bootstrap Flow
@@ -50,13 +50,13 @@ Install and upgrade everything:
 
 ```elisp
 ;; scripts/bootstrap-install.el
-(setq vc-use-package-plus-batch-root user-emacs-directory
-      vc-use-package-plus-batch-load-files '("early-init.el" "init.el")
-      vc-use-package-plus-batch-setup-forms
+(setq vcupp-batch-root user-emacs-directory
+      vcupp-batch-load-files '("early-init.el" "init.el")
+      vcupp-batch-setup-forms
       '((setq use-package-always-ensure t)
         (setq package-native-compile t)))
 
-(load "/path/to/vc-use-package-plus/scripts/install-packages.el")
+(load "/path/to/vcupp/scripts/install-packages.el")
 ```
 
 Run it with:
@@ -69,11 +69,11 @@ Native-compile your config files after package updates:
 
 ```elisp
 ;; scripts/bootstrap-native-comp.el
-(setq vc-use-package-plus-batch-root user-emacs-directory
-      vc-use-package-plus-batch-load-files '("early-init.el" "init.el")
-      vc-use-package-plus-batch-compile-files '("early-init.el" "init.el"))
+(setq vcupp-batch-root user-emacs-directory
+      vcupp-batch-load-files '("early-init.el" "init.el")
+      vcupp-batch-compile-files '("early-init.el" "init.el"))
 
-(load "/path/to/vc-use-package-plus/scripts/native-comp-all.el")
+(load "/path/to/vcupp/scripts/native-comp-all.el")
 ```
 
 Run it with:
@@ -85,15 +85,15 @@ emacs -Q --batch -l scripts/bootstrap-native-comp.el
 The batch helper also supports config-specific toggles and post-install hooks:
 
 ```elisp
-(setq vc-use-package-plus-batch-setup-forms
+(setq vcupp-batch-setup-forms
       '((setq my-install-packages t)
         (setq my-native-comp-enable nil))
-      vc-use-package-plus-batch-post-load-function #'my-run-deferred-tasks
-      vc-use-package-plus-batch-post-install-functions
+      vcupp-batch-post-load-function #'my-run-deferred-tasks
+      vcupp-batch-post-install-functions
       '(kind-icon-reset-cache kind-icon-preview-all))
 ```
 
-See [`vc-use-package-plus-batch.el`](vc-use-package-plus-batch.el),
+See [`vcupp-batch.el`](vcupp-batch.el),
 [`scripts/install-packages.el`](scripts/install-packages.el), and
 [`scripts/native-comp-all.el`](scripts/native-comp-all.el) for the variables
 the wrappers can set.

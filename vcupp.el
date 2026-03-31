@@ -1,10 +1,10 @@
-;;; vc-use-package-plus.el --- Better use-package :vc support -*- lexical-binding: t -*-
+;;; vcupp.el --- Better use-package :vc support -*- lexical-binding: t -*-
 
 ;; Author: Michael Olson
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1") (use-package "2.4"))
 ;; Keywords: convenience, lisp
-;; URL: https://github.com/mwolson/vc-use-package-plus
+;; URL: https://github.com/mwolson/vcupp
 
 ;;; Commentary:
 
@@ -26,14 +26,14 @@
 (defvar package-vc-selected-packages)
 (defvar warning-minimum-level)
 
-(defgroup vc-use-package-plus nil
+(defgroup vcupp nil
   "Extensions for `use-package :vc'."
   :group 'convenience)
 
-(defun vc-use-package-plus--generated-el-file-p (path)
+(defun vcupp--generated-el-file-p (path)
   (string-match-p "-\\(?:autoloads\\|pkg\\)\\.el\\'" path))
 
-(defun vc-use-package-plus--expand-el-file-specs (base-dir files)
+(defun vcupp--expand-el-file-specs (base-dir files)
   (delete-dups
    (delq nil
          (apply #'append
@@ -41,13 +41,13 @@
                  (lambda (file)
                    (mapcar (lambda (path)
                              (and (file-regular-p path)
-                                  (not (vc-use-package-plus--generated-el-file-p path))
+                                  (not (vcupp--generated-el-file-p path))
                                   path))
                            (file-expand-wildcards
                             (expand-file-name file base-dir) t)))
                  files)))))
 
-(defun vc-use-package-plus--selected-el-files (pkg-desc)
+(defun vcupp--selected-el-files (pkg-desc)
   (let* ((pkg-spec (and (package-vc-p pkg-desc)
                         (package-vc--desc->spec pkg-desc))))
     (when pkg-spec
@@ -64,16 +64,16 @@
                (main-file
                 (list main-file)))))
         (when selected-files
-          (vc-use-package-plus--expand-el-file-specs base-dir selected-files))))))
+          (vcupp--expand-el-file-specs base-dir selected-files))))))
 
-(defun vc-use-package-plus--compile-targets (pkg-desc)
+(defun vcupp--compile-targets (pkg-desc)
   (let* ((pkg-spec (and (package-vc-p pkg-desc)
                         (package-vc--desc->spec pkg-desc))))
     (when pkg-spec
       (let* ((dir (package-desc-dir pkg-desc))
              (lisp-dir (plist-get pkg-spec :lisp-dir))
              (full-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
-             (selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
+             (selected-files (vcupp--selected-el-files pkg-desc)))
         (cond
          (selected-files
           (list :type 'files :paths selected-files))
@@ -81,13 +81,13 @@
           (and (file-directory-p full-dir)
                (list :type 'dir :path full-dir))))))))
 
-(defun vc-use-package-plus--save-spec-early (pkg-desc pkg-spec &optional _rev)
+(defun vcupp--save-spec-early (pkg-desc pkg-spec &optional _rev)
   (when-let* ((name (package-desc-name pkg-desc))
               ((not (alist-get name package-vc-selected-packages nil nil #'string=))))
     (push (cons name pkg-spec) package-vc-selected-packages)))
 
-(defun vc-use-package-plus--selected-file-deps (orig-fn pkg-desc pkg-dir)
-  (let ((selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
+(defun vcupp--selected-file-deps (orig-fn pkg-desc pkg-dir)
+  (let ((selected-files (vcupp--selected-el-files pkg-desc)))
     (if (not selected-files)
         (funcall orig-fn pkg-desc pkg-dir)
       (cl-letf* ((orig-directory-files (symbol-function 'directory-files))
@@ -98,12 +98,12 @@
                       (funcall orig-directory-files dir full match nosort count)))))
         (funcall orig-fn pkg-desc pkg-dir)))))
 
-(defun vc-use-package-plus--skip-elpa (orig-fn dir &rest args)
+(defun vcupp--skip-elpa (orig-fn dir &rest args)
   (unless (string-prefix-p (expand-file-name package-user-dir)
                            (expand-file-name dir))
     (apply orig-fn dir args)))
 
-(defun vc-use-package-plus--handle-pre-release (orig-fn str)
+(defun vcupp--handle-pre-release (orig-fn str)
   (or (condition-case nil (funcall orig-fn str) (error nil))
       (when str
         (condition-case nil
@@ -111,8 +111,8 @@
                               "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
           (error nil)))))
 
-(defun vc-use-package-plus--byte-compile-targets (orig-fn pkg-desc)
-  (let ((target (vc-use-package-plus--compile-targets pkg-desc)))
+(defun vcupp--byte-compile-targets (orig-fn pkg-desc)
+  (let ((target (vcupp--compile-targets pkg-desc)))
     (if (not target)
         (funcall orig-fn pkg-desc)
       (let ((warning-minimum-level :error))
@@ -123,9 +123,9 @@
           ('dir
            (byte-recompile-directory (plist-get target :path) 0 'force)))))))
 
-(defun vc-use-package-plus--native-compile-targets (orig-fn pkg-desc)
+(defun vcupp--native-compile-targets (orig-fn pkg-desc)
   (when (native-comp-available-p)
-    (let ((target (vc-use-package-plus--compile-targets pkg-desc)))
+    (let ((target (vcupp--compile-targets pkg-desc)))
       (if (not target)
           (funcall orig-fn pkg-desc)
         (let ((warning-minimum-level :error))
@@ -137,17 +137,17 @@
               (directory-files-recursively (plist-get target :path) "\\.el\\'")))))))))
 
 (with-eval-after-load 'package-vc
-  (advice-add 'package-vc--unpack :before #'vc-use-package-plus--save-spec-early)
-  (advice-add 'package-vc--unpack-1 :around #'vc-use-package-plus--selected-file-deps)
-  (advice-add 'project-remember-projects-under :around #'vc-use-package-plus--skip-elpa)
-  (advice-add 'package-strip-rcs-id :around #'vc-use-package-plus--handle-pre-release)
-  (advice-add 'package--compile :around #'vc-use-package-plus--byte-compile-targets)
-  (advice-add 'package--native-compile-async :around #'vc-use-package-plus--native-compile-targets))
+  (advice-add 'package-vc--unpack :before #'vcupp--save-spec-early)
+  (advice-add 'package-vc--unpack-1 :around #'vcupp--selected-file-deps)
+  (advice-add 'project-remember-projects-under :around #'vcupp--skip-elpa)
+  (advice-add 'package-strip-rcs-id :around #'vcupp--handle-pre-release)
+  (advice-add 'package--compile :around #'vcupp--byte-compile-targets)
+  (advice-add 'package--native-compile-async :around #'vcupp--native-compile-targets))
 
 (unless (memq :compile-files use-package-vc-valid-keywords)
   (add-to-list 'use-package-vc-valid-keywords :compile-files))
 
-(defun vc-use-package-plus--normalize-vc-arg (orig-fn arg)
+(defun vcupp--normalize-vc-arg (orig-fn arg)
   (if (not (member :compile-files arg))
       (funcall orig-fn arg)
     (cl-flet* ((ensure-string (s)
@@ -192,8 +192,7 @@
                                                         v))))
                   (normalize :rev (car (alist-get :rev opts))))))))))
 
-(advice-add 'use-package-normalize--vc-arg :around
-            #'vc-use-package-plus--normalize-vc-arg)
+(advice-add 'use-package-normalize--vc-arg :around #'vcupp--normalize-vc-arg)
 
-(provide 'vc-use-package-plus)
-;;; vc-use-package-plus.el ends here
+(provide 'vcupp)
+;;; vcupp.el ends here
