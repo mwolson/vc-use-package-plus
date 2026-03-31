@@ -47,100 +47,107 @@
                             (expand-file-name file base-dir) t)))
                  files)))))
 
-(with-eval-after-load 'package-vc
-  (defun vc-use-package-plus--selected-el-files (pkg-desc)
-    (let* ((pkg-spec (and (package-vc-p pkg-desc)
-                          (package-vc--desc->spec pkg-desc))))
-      (when pkg-spec
-        (let* ((dir (package-desc-dir pkg-desc))
-               (lisp-dir (plist-get pkg-spec :lisp-dir))
-               (base-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
-               (main-file (plist-get pkg-spec :main-file))
-               (compile-files (plist-get pkg-spec :compile-files))
-               (selected-files
-                (cond
-                 (compile-files
-                  (append (and main-file (list main-file))
-                          compile-files))
-                 (main-file
-                  (list main-file)))))
-          (when selected-files
-            (vc-use-package-plus--expand-el-file-specs base-dir selected-files))))))
+(defun vc-use-package-plus--selected-el-files (pkg-desc)
+  (let* ((pkg-spec (and (package-vc-p pkg-desc)
+                        (package-vc--desc->spec pkg-desc))))
+    (when pkg-spec
+      (let* ((dir (package-desc-dir pkg-desc))
+             (lisp-dir (plist-get pkg-spec :lisp-dir))
+             (base-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
+             (main-file (plist-get pkg-spec :main-file))
+             (compile-files (plist-get pkg-spec :compile-files))
+             (selected-files
+              (cond
+               (compile-files
+                (append (and main-file (list main-file))
+                        compile-files))
+               (main-file
+                (list main-file)))))
+        (when selected-files
+          (vc-use-package-plus--expand-el-file-specs base-dir selected-files))))))
 
-  (defun vc-use-package-plus--compile-targets (pkg-desc)
-    (let* ((pkg-spec (and (package-vc-p pkg-desc)
-                          (package-vc--desc->spec pkg-desc))))
-      (when pkg-spec
-        (let* ((dir (package-desc-dir pkg-desc))
-               (lisp-dir (plist-get pkg-spec :lisp-dir))
-               (full-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
-               (selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
-          (cond
-           (selected-files
-            (list :type 'files :paths selected-files))
-           (lisp-dir
-            (and (file-directory-p full-dir)
-                 (list :type 'dir :path full-dir))))))))
+(defun vc-use-package-plus--compile-targets (pkg-desc)
+  (let* ((pkg-spec (and (package-vc-p pkg-desc)
+                        (package-vc--desc->spec pkg-desc))))
+    (when pkg-spec
+      (let* ((dir (package-desc-dir pkg-desc))
+             (lisp-dir (plist-get pkg-spec :lisp-dir))
+             (full-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
+             (selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
+        (cond
+         (selected-files
+          (list :type 'files :paths selected-files))
+         (lisp-dir
+          (and (file-directory-p full-dir)
+               (list :type 'dir :path full-dir))))))))
 
-  (define-advice package-vc--unpack (:before (pkg-desc pkg-spec &optional _rev) save-spec-early)
-    (when-let* ((name (package-desc-name pkg-desc))
-                ((not (alist-get name package-vc-selected-packages nil nil #'string=))))
-      (push (cons name pkg-spec) package-vc-selected-packages)))
+(defun vc-use-package-plus--save-spec-early (pkg-desc pkg-spec &optional _rev)
+  (when-let* ((name (package-desc-name pkg-desc))
+              ((not (alist-get name package-vc-selected-packages nil nil #'string=))))
+    (push (cons name pkg-spec) package-vc-selected-packages)))
 
-  (define-advice package-vc--unpack-1 (:around (orig-fn pkg-desc pkg-dir) selected-file-deps)
-    (let ((selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
-      (if (not selected-files)
-          (funcall orig-fn pkg-desc pkg-dir)
-        (cl-letf* ((orig-directory-files (symbol-function 'directory-files))
-                   ((symbol-function 'directory-files)
-                    (lambda (dir &optional full match nosort count)
-                      (if (and full (equal match "\\.el\\'"))
-                          selected-files
-                        (funcall orig-directory-files dir full match nosort count)))))
-          (funcall orig-fn pkg-desc pkg-dir)))))
+(defun vc-use-package-plus--selected-file-deps (orig-fn pkg-desc pkg-dir)
+  (let ((selected-files (vc-use-package-plus--selected-el-files pkg-desc)))
+    (if (not selected-files)
+        (funcall orig-fn pkg-desc pkg-dir)
+      (cl-letf* ((orig-directory-files (symbol-function 'directory-files))
+                 ((symbol-function 'directory-files)
+                  (lambda (dir &optional full match nosort count)
+                    (if (and full (equal match "\\.el\\'"))
+                        selected-files
+                      (funcall orig-directory-files dir full match nosort count)))))
+        (funcall orig-fn pkg-desc pkg-dir)))))
 
-  (define-advice project-remember-projects-under (:around (orig-fn dir &rest args) skip-elpa)
-    (unless (string-prefix-p (expand-file-name package-user-dir)
-                             (expand-file-name dir))
-      (apply orig-fn dir args)))
+(defun vc-use-package-plus--skip-elpa (orig-fn dir &rest args)
+  (unless (string-prefix-p (expand-file-name package-user-dir)
+                           (expand-file-name dir))
+    (apply orig-fn dir args)))
 
-  (define-advice package-strip-rcs-id (:around (orig-fn str) handle-pre-release)
-    (or (condition-case nil (funcall orig-fn str) (error nil))
-        (when str
-          (condition-case nil
-              (funcall orig-fn (replace-regexp-in-string
-                                "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
-            (error nil)))))
+(defun vc-use-package-plus--handle-pre-release (orig-fn str)
+  (or (condition-case nil (funcall orig-fn str) (error nil))
+      (when str
+        (condition-case nil
+            (funcall orig-fn (replace-regexp-in-string
+                              "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
+          (error nil)))))
 
-  (define-advice package--compile (:around (orig-fn pkg-desc) vc-compile-targets)
+(defun vc-use-package-plus--byte-compile-targets (orig-fn pkg-desc)
+  (let ((target (vc-use-package-plus--compile-targets pkg-desc)))
+    (if (not target)
+        (funcall orig-fn pkg-desc)
+      (let ((warning-minimum-level :error))
+        (pcase (plist-get target :type)
+          ('files
+           (dolist (path (plist-get target :paths))
+             (byte-compile-file path)))
+          ('dir
+           (byte-recompile-directory (plist-get target :path) 0 'force)))))))
+
+(defun vc-use-package-plus--native-compile-targets (orig-fn pkg-desc)
+  (when (native-comp-available-p)
     (let ((target (vc-use-package-plus--compile-targets pkg-desc)))
       (if (not target)
           (funcall orig-fn pkg-desc)
         (let ((warning-minimum-level :error))
           (pcase (plist-get target :type)
             ('files
-             (dolist (path (plist-get target :paths))
-               (byte-compile-file path)))
+             (native-compile-async (plist-get target :paths)))
             ('dir
-             (byte-recompile-directory (plist-get target :path) 0 'force)))))))
+             (native-compile-async
+              (directory-files-recursively (plist-get target :path) "\\.el\\'")))))))))
 
-  (define-advice package--native-compile-async (:around (orig-fn pkg-desc) vc-compile-targets)
-    (when (native-comp-available-p)
-      (let ((target (vc-use-package-plus--compile-targets pkg-desc)))
-        (if (not target)
-            (funcall orig-fn pkg-desc)
-          (let ((warning-minimum-level :error))
-            (pcase (plist-get target :type)
-              ('files
-               (native-compile-async (plist-get target :paths)))
-              ('dir
-               (native-compile-async
-                (directory-files-recursively (plist-get target :path) "\\.el\\'"))))))))))
+(with-eval-after-load 'package-vc
+  (advice-add 'package-vc--unpack :before #'vc-use-package-plus--save-spec-early)
+  (advice-add 'package-vc--unpack-1 :around #'vc-use-package-plus--selected-file-deps)
+  (advice-add 'project-remember-projects-under :around #'vc-use-package-plus--skip-elpa)
+  (advice-add 'package-strip-rcs-id :around #'vc-use-package-plus--handle-pre-release)
+  (advice-add 'package--compile :around #'vc-use-package-plus--byte-compile-targets)
+  (advice-add 'package--native-compile-async :around #'vc-use-package-plus--native-compile-targets))
 
 (unless (memq :compile-files use-package-vc-valid-keywords)
   (add-to-list 'use-package-vc-valid-keywords :compile-files))
 
-(define-advice use-package-normalize--vc-arg (:around (orig-fn arg) compile-files)
+(defun vc-use-package-plus--normalize-vc-arg (orig-fn arg)
   (if (not (member :compile-files arg))
       (funcall orig-fn arg)
     (cl-flet* ((ensure-string (s)
@@ -184,6 +191,9 @@
                                                           (car v)
                                                         v))))
                   (normalize :rev (car (alist-get :rev opts))))))))))
+
+(advice-add 'use-package-normalize--vc-arg :around
+            #'vc-use-package-plus--normalize-vc-arg)
 
 (provide 'vc-use-package-plus)
 ;;; vc-use-package-plus.el ends here

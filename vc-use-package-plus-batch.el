@@ -81,6 +81,9 @@ Patterns are resolved relative to `vc-use-package-plus-batch-root'.")
   (setf (alist-get name vc-use-package-plus-batch--desired-vc-specs nil nil #'eq)
         arg))
 
+(defun vc-use-package-plus-batch--record-install-spec-advice (name keyword arg rest state)
+  (vc-use-package-plus-batch--record-vc-spec name keyword arg rest state))
+
 (defun vc-use-package-plus-batch--reinstall-changed-vc-urls ()
   (message "Checking VC packages for source URL changes...")
   (dolist (pkg-alist-entry package-alist)
@@ -168,9 +171,8 @@ Patterns are resolved relative to `vc-use-package-plus-batch-root'.")
   (require 'use-package)
   (when vc-use-package-plus-batch-refresh-contents
     (package-refresh-contents))
-  (define-advice use-package-handler/:vc
-      (:before (name keyword arg rest state) record-install-spec)
-    (vc-use-package-plus-batch--record-vc-spec name keyword arg rest state))
+  (advice-add 'use-package-handler/:vc :before
+              #'vc-use-package-plus-batch--record-install-spec-advice)
   (advice-add 'project-remember-projects-under :override #'ignore)
   (advice-add 'yes-or-no-p :override (lambda (&rest _) t))
   (vc-use-package-plus-batch--load-config)
