@@ -43,8 +43,10 @@ monorepo or otherwise need an explicit compile set.
 ## Bootstrap Flow
 
 If you want a command-line bootstrap that installs, upgrades, and byte-compiles
-packages before your first real Emacs session, keep a checkout of this repo
-somewhere on disk and create a tiny wrapper script in your own config repo.
+packages before your first real Emacs session, keep the `use-package vcupp`
+declaration from the quickstart in your config. The wrapper examples below then
+load the installed scripts from the default package directory,
+`~/.emacs.d/elpa/vcupp/`.
 
 Install and upgrade everything:
 
@@ -55,7 +57,9 @@ Install and upgrade everything:
         :setup-forms ((setq use-package-always-ensure t)
                       (setq package-native-compile t))))
 
-(load "/path/to/vcupp/scripts/install-packages.el")
+(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/install-packages.el"))
+;; If you customized `package-user-dir' to an XDG path:
+;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/install-packages.el"))
 ```
 
 Run it with:
@@ -73,7 +77,9 @@ Recommended: use `compile-angel` for broader coverage:
 (setq vcupp-batch-args
       '(:load-files ("early-init.el" "init.el")))
 
-(load "/path/to/vcupp/scripts/native-comp-all.el")
+(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/native-comp-all.el"))
+;; If you customized `package-user-dir' to an XDG path:
+;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/native-comp-all.el"))
 ```
 
 Run it with:
@@ -82,11 +88,12 @@ Run it with:
 emacs -Q --batch -l scripts/bootstrap-native-comp.el
 ```
 
-This path enables `compile-angel-on-load-mode` when `compile-angel` is already
-installed, which expands coverage to packages and other libraries loaded during
-the batch run. It still explicitly calls `native-compile` on the configured
-entry files afterward, but in most configs `early-init.el` and `init.el` are
-enough to exercise nearly everything you care about.
+This path installs `compile-angel` with `package-vc-install` if needed, then
+enables `compile-angel-on-load-mode` to expand coverage to packages and other
+libraries loaded during the batch run. It still explicitly calls
+`native-compile` on the configured entry files afterward, but in most configs
+`early-init.el` and `init.el` are enough to exercise nearly everything you care
+about.
 
 Alternative: disable `compile-angel` and compile an explicit file list:
 
@@ -97,7 +104,9 @@ Alternative: disable `compile-angel` and compile an explicit file list:
         :compile-files ("settings.el" "early-init.el" "init.el")
         :use-compile-angel nil))
 
-(load "/path/to/vcupp/scripts/native-comp-all.el")
+(load (expand-file-name "~/.emacs.d/elpa/vcupp/scripts/native-comp-all.el"))
+;; If you customized `package-user-dir' to an XDG path:
+;; (load (expand-file-name "~/.config/emacs/elpa/vcupp/scripts/native-comp-all.el"))
 ```
 
 The batch helper also accepts a single plist when you need custom paths,

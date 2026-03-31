@@ -15,18 +15,32 @@
 (defvar vcupp-native-comp-use-compile-angel t
   "When non-nil, try enabling `compile-angel-on-load-mode' during batch runs.")
 
+(defconst vcupp-native-comp--compile-angel-spec
+  '(compile-angel :url "https://github.com/jamescherti/compile-angel.el"
+                  :main-file "compile-angel.el")
+  "VC spec used to install `compile-angel' on demand.")
+
 (defun vcupp-native-comp--use-compile-angel-p (args)
   (vcupp-batch--plist-value args :use-compile-angel
                             vcupp-native-comp-use-compile-angel))
 
-(defun vcupp-native-comp--enable-compile-angel (args)
+(defun vcupp-native-comp--ensure-compile-angel (args)
   (when (vcupp-native-comp--use-compile-angel-p args)
-    (if (not (require 'compile-angel nil t))
-        (message "compile-angel not installed; falling back to explicit native compilation only")
-      (let ((previous-load-prefer-newer load-prefer-newer))
-        (setq load-prefer-newer t)
-        (compile-angel-on-load-mode 1)
-        (list :enabled t :load-prefer-newer previous-load-prefer-newer)))))
+    (or (require 'compile-angel nil t)
+        (progn
+          (message "Installing compile-angel via package-vc...")
+          (package-vc-install vcupp-native-comp--compile-angel-spec)
+          (require 'compile-angel nil t))
+        (progn
+          (message "Unable to install compile-angel; falling back to explicit native compilation only")
+          nil))))
+
+(defun vcupp-native-comp--enable-compile-angel (compile-angel-available)
+  (when compile-angel-available
+    (let ((previous-load-prefer-newer load-prefer-newer))
+      (setq load-prefer-newer t)
+      (compile-angel-on-load-mode 1)
+      (list :enabled t :load-prefer-newer previous-load-prefer-newer))))
 
 (defun vcupp-native-comp--disable-compile-angel (state)
   (when (plist-get state :enabled)
@@ -44,17 +58,20 @@ ARGS is an optional plist. Supported keys are `:root', `:load-files',
       (user-error "Native compilation is not available in this Emacs"))
     (vcupp-batch-run-setup)
     (package-initialize)
+    (let ((compile-angel-available
+           (vcupp-native-comp--ensure-compile-angel args)))
     (advice-add 'package-vc-install :override #'ignore)
-    (let (compile-angel-state)
-      (unwind-protect
-          (progn
-            (vcupp-batch-load-config)
-            (setq compile-angel-state
-                  (vcupp-native-comp--enable-compile-angel args))
-            (message "Native-compiling files...")
-            (dolist (file (vcupp-batch-compile-files))
-              (native-compile (vcupp-batch-expand-file file))))
-        (vcupp-native-comp--disable-compile-angel compile-angel-state)))))
+      (let (compile-angel-state)
+        (unwind-protect
+            (progn
+              (vcupp-batch-load-config)
+              (setq compile-angel-state
+                    (vcupp-native-comp--enable-compile-angel
+                     compile-angel-available))
+              (message "Native-compiling files...")
+              (dolist (file (vcupp-batch-compile-files))
+                (native-compile (vcupp-batch-expand-file file))))
+          (vcupp-native-comp--disable-compile-angel compile-angel-state))))))
 
 (provide 'vcupp-native-comp)
 ;;; vcupp-native-comp.el ends here
