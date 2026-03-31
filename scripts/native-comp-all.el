@@ -8,7 +8,7 @@
       (add-to-list 'load-path (expand-file-name ".." source-dir)))
     (require 'vcupp-batch)))
 
-(vcupp-batch-native-comp-all)
+(vcupp-batch-native-comp-all vcupp-batch-args)
 
 (provide 'native-comp-all)
 ;;; native-comp-all.el ends here

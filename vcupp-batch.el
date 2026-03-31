@@ -11,8 +11,14 @@
 (require 'package)
 (require 'subr-x)
 
+(defconst vcupp-batch-default-load-files '("early-init.el" "init.el")
+  "Default config files loaded by the batch helpers.")
+
+(defvar vcupp-batch-args nil
+  "Default plist of arguments consumed by the batch entry points.")
+
 (defvar vcupp-batch-root
-  (expand-file-name default-directory)
+  (expand-file-name user-emacs-directory)
   "Root directory of the Emacs config being processed.")
 
 (defvar vcupp-batch-load-files nil
@@ -48,6 +54,56 @@ Patterns are resolved relative to `vcupp-batch-root'.")
 (defvar vcupp-batch--desired-vc-specs nil
   "Normalized VC specs declared by `use-package' during this run.")
 
+(defun vcupp-batch--plist-value (args prop fallback)
+  (if (plist-member args prop)
+      (plist-get args prop)
+    fallback))
+
+(defun vcupp-batch--effective-args (&optional args)
+  (let* ((args (or args vcupp-batch-args))
+         (root (expand-file-name
+                (vcupp-batch--plist-value args :root vcupp-batch-root)))
+         (load-files (or (vcupp-batch--plist-value args :load-files
+                                                   vcupp-batch-load-files)
+                         vcupp-batch-default-load-files))
+         (compile-files (or (vcupp-batch--plist-value args :compile-files
+                                                      vcupp-batch-compile-files)
+                            load-files)))
+    (list :root root
+          :load-files load-files
+          :compile-files compile-files
+          :setup-forms (vcupp-batch--plist-value args :setup-forms
+                                                 vcupp-batch-setup-forms)
+          :preload-features (vcupp-batch--plist-value args :preload-features
+                                                      vcupp-batch-preload-features)
+          :delete-elc-globs (vcupp-batch--plist-value args :delete-elc-globs
+                                                      vcupp-batch-delete-elc-globs)
+          :post-load-function (vcupp-batch--plist-value args :post-load-function
+                                                        vcupp-batch-post-load-function)
+          :post-install-functions (vcupp-batch--plist-value args :post-install-functions
+                                                            vcupp-batch-post-install-functions)
+          :refresh-contents (vcupp-batch--plist-value args :refresh-contents
+                                                      vcupp-batch-refresh-contents)
+          :package-native-compile (vcupp-batch--plist-value args :package-native-compile
+                                                           vcupp-batch-package-native-compile))))
+
+(defmacro vcupp-batch--with-effective-args (args &rest body)
+  (declare (indent 1) (debug t))
+  `(let* ((effective-args (vcupp-batch--effective-args ,args))
+          (vcupp-batch-root (plist-get effective-args :root))
+          (vcupp-batch-load-files (plist-get effective-args :load-files))
+          (vcupp-batch-compile-files (plist-get effective-args :compile-files))
+          (vcupp-batch-setup-forms (plist-get effective-args :setup-forms))
+          (vcupp-batch-preload-features (plist-get effective-args :preload-features))
+          (vcupp-batch-delete-elc-globs (plist-get effective-args :delete-elc-globs))
+          (vcupp-batch-post-load-function (plist-get effective-args :post-load-function))
+          (vcupp-batch-post-install-functions
+           (plist-get effective-args :post-install-functions))
+          (vcupp-batch-refresh-contents (plist-get effective-args :refresh-contents))
+          (vcupp-batch-package-native-compile
+           (plist-get effective-args :package-native-compile)))
+     ,@body))
+
 (defun vcupp-batch--expand-file (path)
   (if (file-name-absolute-p path)
       path
@@ -55,7 +111,7 @@ Patterns are resolved relative to `vcupp-batch-root'.")
 
 (defun vcupp-batch--load-files ()
   (or vcupp-batch-load-files
-      (user-error "Set vcupp-batch-load-files before loading this script")))
+      (user-error "Set :load-files or `vcupp-batch-load-files' before loading this script")))
 
 (defun vcupp-batch--compile-files ()
   (or vcupp-batch-compile-files
@@ -162,39 +218,50 @@ Patterns are resolved relative to `vcupp-batch-root'.")
                            (file-newer-than-file-p el elc))
                   (delete-file elc))))))))))
 
-(defun vcupp-batch-install-packages ()
-  "Install and upgrade packages declared by the current config."
-  (setq vcupp-batch--desired-vc-specs nil)
-  (vcupp-batch--run-setup)
-  (setq package-native-compile vcupp-batch-package-native-compile)
-  (package-initialize)
-  (require 'use-package)
-  (when vcupp-batch-refresh-contents
-    (package-refresh-contents))
-  (advice-add 'use-package-handler/:vc :before
-              #'vcupp-batch--record-install-spec-advice)
-  (advice-add 'project-remember-projects-under :override #'ignore)
-  (advice-add 'yes-or-no-p :override (lambda (&rest _) t))
-  (vcupp-batch--load-config)
-  (vcupp-batch--reinstall-changed-vc-urls)
-  (vcupp-batch--attach-vc-packages-to-branches)
-  (message "Upgrading VC packages to latest commits...")
-  (package-vc-upgrade-all)
-  (vcupp-batch--clean-stale-vc-elc-files)
-  (dolist (fn vcupp-batch-post-install-functions)
-    (funcall fn)))
+(defun vcupp-batch-install-packages (&optional args)
+  "Install and upgrade packages declared by the current config.
 
-(defun vcupp-batch-native-comp-all ()
-  "Native-compile the configured Emacs files."
-  (unless (native-comp-available-p)
-    (user-error "Native compilation is not available in this Emacs"))
-  (vcupp-batch--run-setup)
-  (package-initialize)
-  (advice-add 'package-vc-install :override #'ignore)
-  (vcupp-batch--load-config)
-  (message "Native-compiling files...")
-  (dolist (file (vcupp-batch--compile-files))
-    (native-compile (vcupp-batch--expand-file file))))
+ARGS is an optional plist. Supported keys are `:root', `:load-files',
+`:setup-forms', `:preload-features', `:delete-elc-globs',
+`:post-load-function', `:post-install-functions', `:refresh-contents',
+and `:package-native-compile'."
+  (vcupp-batch--with-effective-args args
+    (setq vcupp-batch--desired-vc-specs nil)
+    (vcupp-batch--run-setup)
+    (setq package-native-compile vcupp-batch-package-native-compile)
+    (package-initialize)
+    (require 'use-package)
+    (when vcupp-batch-refresh-contents
+      (package-refresh-contents))
+    (advice-add 'use-package-handler/:vc :before
+                #'vcupp-batch--record-install-spec-advice)
+    (advice-add 'project-remember-projects-under :override #'ignore)
+    (advice-add 'yes-or-no-p :override (lambda (&rest _) t))
+    (vcupp-batch--load-config)
+    (vcupp-batch--reinstall-changed-vc-urls)
+    (vcupp-batch--attach-vc-packages-to-branches)
+    (message "Upgrading VC packages to latest commits...")
+    (package-vc-upgrade-all)
+    (vcupp-batch--clean-stale-vc-elc-files)
+    (dolist (fn vcupp-batch-post-install-functions)
+      (funcall fn))))
+
+(defun vcupp-batch-native-comp-all (&optional args)
+  "Native-compile the configured Emacs files.
+
+ARGS is an optional plist. Supported keys are `:root', `:load-files',
+`:compile-files', `:setup-forms', `:preload-features',
+`:delete-elc-globs', and `:post-load-function'."
+  (vcupp-batch--with-effective-args args
+    (unless (native-comp-available-p)
+      (user-error "Native compilation is not available in this Emacs"))
+    (vcupp-batch--run-setup)
+    (package-initialize)
+    (advice-add 'package-vc-install :override #'ignore)
+    (vcupp-batch--load-config)
+    (message "Native-compiling files...")
+    (dolist (file (vcupp-batch--compile-files))
+      (native-compile (vcupp-batch--expand-file file)))))
 
 (provide 'vcupp-batch)
 ;;; vcupp-batch.el ends here
