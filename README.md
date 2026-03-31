@@ -80,6 +80,11 @@ Run it with:
 emacs -Q --batch -l scripts/bootstrap-native-comp.el
 ```
 
+The native compilation path enables `compile-angel-on-load-mode` when
+`compile-angel` is already installed, which expands coverage to packages and
+other libraries loaded during the batch run. It still explicitly calls
+`native-compile` on the configured entry files afterward.
+
 The batch helper also accepts a single plist when you need custom paths,
 config-specific toggles, or post-install hooks:
 
@@ -92,11 +97,14 @@ config-specific toggles, or post-install hooks:
                         "init/shared-init.el")
         :setup-forms ((setq my-install-packages t)
                       (setq my-native-comp-enable nil))
+        :use-compile-angel t
         :post-load-function my-run-deferred-tasks
         :post-install-functions (kind-icon-reset-cache kind-icon-preview-all)))
 ```
 
 See [`vcupp-batch.el`](vcupp-batch.el),
+[`vcupp-install-packages.el`](vcupp-install-packages.el),
+[`vcupp-native-comp.el`](vcupp-native-comp.el),
 [`scripts/install-packages.el`](scripts/install-packages.el), and
 [`scripts/native-comp-all.el`](scripts/native-comp-all.el) for the supported
 plist keys and defaults.
@@ -129,5 +137,5 @@ Added by `vcupp`:
 
 ## License
 
-Unless stated otherwise, the files in this repo may be used, distributed, and
-modified without restriction.
+This project is licensed under the GNU General Public License, version 3 or any
+later version. See [LICENSE](LICENSE).

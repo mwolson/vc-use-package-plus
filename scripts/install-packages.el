@@ -6,9 +6,9 @@
                           (file-name-directory (expand-file-name source-file)))))
     (when source-dir
       (add-to-list 'load-path (expand-file-name ".." source-dir)))
-    (require 'vcupp-batch)))
+    (require 'vcupp-install-packages)))
 
-(vcupp-batch-install-packages vcupp-batch-args)
+(vcupp-install-packages vcupp-batch-args)
 
 (provide 'install-packages)
 ;;; install-packages.el ends here
