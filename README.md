@@ -64,7 +64,9 @@ Run it with:
 emacs -Q --batch -l scripts/bootstrap-install.el
 ```
 
-Native-compile your config files after package updates:
+Native-compile your config files after package updates.
+
+Recommended: use `compile-angel` for broader coverage:
 
 ```elisp
 ;; scripts/bootstrap-native-comp.el
@@ -80,10 +82,23 @@ Run it with:
 emacs -Q --batch -l scripts/bootstrap-native-comp.el
 ```
 
-The native compilation path enables `compile-angel-on-load-mode` when
-`compile-angel` is already installed, which expands coverage to packages and
-other libraries loaded during the batch run. It still explicitly calls
-`native-compile` on the configured entry files afterward.
+This path enables `compile-angel-on-load-mode` when `compile-angel` is already
+installed, which expands coverage to packages and other libraries loaded during
+the batch run. It still explicitly calls `native-compile` on the configured
+entry files afterward, but in most configs `early-init.el` and `init.el` are
+enough to exercise nearly everything you care about.
+
+Alternative: disable `compile-angel` and compile an explicit file list:
+
+```elisp
+;; scripts/bootstrap-native-comp.el
+(setq vcupp-batch-args
+      '(:load-files ("early-init.el" "init.el")
+        :compile-files ("settings.el" "early-init.el" "init.el")
+        :use-compile-angel nil))
+
+(load "/path/to/vcupp/scripts/native-comp-all.el")
+```
 
 The batch helper also accepts a single plist when you need custom paths,
 config-specific toggles, or post-install hooks:
