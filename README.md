@@ -125,7 +125,11 @@ handles compilation ahead of time).  It is a no-op when
 conflict:
 
 ```elisp
-;; In early-init.el
+;; In early-init.el -- after loading vcupp
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :demand t)
+
 (eval-and-compile
   (vcupp-suppress-native-comp-jit))
 ```
@@ -156,19 +160,33 @@ Alternative: disable `compile-angel` and compile an explicit file list:
 ```
 
 The batch helper also accepts a single plist when you need custom paths,
-config-specific toggles, or post-install hooks:
+config-specific toggles, or post-install hooks.  Here is a real-world
+install script for a config whose files live under `init/`:
 
 ```elisp
+;; scripts/install-packages.el
+(require 'package)
+(setq package-user-dir (locate-user-emacs-file "elpa"))
+(package-initialize)
+
+(require 'use-package)
+(setq use-package-vc-prefer-newest t)
+
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :demand t)
+(require 'vcupp-install-packages)
+
 (setq vcupp-batch-args
-      '(:root "~/src/my-emacs-config/"
+      `(:root ,(expand-file-name
+                (concat (file-name-directory load-file-name) "../"))
         :load-files ("init/early-shared-init.el" "init/shared-init.el")
-        :compile-files ("init/settings.el"
-                        "init/early-shared-init.el"
-                        "init/shared-init.el")
-        :setup-forms ((setq my-install-packages t))
-        :use-compile-angel t
+        :setup-forms ((setq my-install-packages t)
+                      (setq my-server-start-p nil))
         :post-load-function my-run-deferred-tasks
-        :post-install-functions (kind-icon-reset-cache kind-icon-preview-all)))
+        :post-install-functions (kind-icon-reset-cache)))
+
+(vcupp-install-packages vcupp-batch-args)
 ```
 
 All batch entry points set `load-prefer-newer` to `t`, so stale `.elc` files

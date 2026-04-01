@@ -9,10 +9,14 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v3
-      - name: Install Emacs and Melpazoid
+      - name: Install Emacs 30
+        uses: purcell/setup-emacs@master
+        with:
+          version: "30.1"
+      - name: Install Melpazoid
         run: |
           python -m pip install --upgrade pip
-          sudo apt-get install emacs && emacs --version
+          emacs --version
           git clone https://github.com/riscy/melpazoid.git ~/melpazoid
           pip install ~/melpazoid
       - name: Check
