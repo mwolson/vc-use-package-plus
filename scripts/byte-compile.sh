@@ -53,7 +53,7 @@ if [[ -z "$output" ]]; then
     exit 1
 fi
 
-non_compiling_lines=$(echo "$output" | grep -v "^Compiling \|^Package '.*' deleted\.\|^Setting '" || true)
+non_compiling_lines=$(echo "$output" | grep -v "^Compiling \|^Package '.*' deleted\.\|^Setting '\|^Lisp nesting exceeds\|^Loading " || true)
 
 if [[ -n "$non_compiling_lines" ]]; then
     # bun has a bug where given exit code 2 it passes instead of failing

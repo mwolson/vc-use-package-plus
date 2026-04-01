@@ -144,11 +144,17 @@ ORIG-FN is called with DIR and ARGS only when DIR is outside `package-user-dir'.
     (apply orig-fn dir args)))
 
 (defun vcupp--handle-pre-release (orig-fn str)
-  "Ignore version headers that `package-strip-rcs-id' cannot parse.
+  "Handle version headers that `package-strip-rcs-id' cannot parse.
 ORIG-FN is the original function, STR is the version string.
-Returns nil for unparseable versions so `package-vc' assigns a
-default instead of signaling an error."
-  (condition-case nil (funcall orig-fn str) (error nil)))
+Strips common pre-release suffixes (DEV, SNAPSHOT, alpha, beta, rc)
+so that packages with non-standard version headers still get a usable
+version number in their `-pkg.el' descriptor."
+  (or (condition-case nil (funcall orig-fn str) (error nil))
+      (when str
+        (condition-case nil
+            (funcall orig-fn (replace-regexp-in-string
+                              "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
+          (error nil)))))
 
 (defun vcupp--byte-compile-targets (orig-fn pkg-desc)
   "Byte-compile only selected files for PKG-DESC.

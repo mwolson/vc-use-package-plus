@@ -155,8 +155,9 @@
 ;; ---------------------------------------------------------------------------
 
 (ert-deftest vcupp-handle-pre-release/dev-suffix ()
-  "Unparseable -DEV suffix returns nil instead of erroring."
-  (should (null (vcupp--handle-pre-release #'package-strip-rcs-id "0.3.3-DEV"))))
+  "-DEV suffix is stripped to produce a usable version."
+  (let ((result (vcupp--handle-pre-release #'package-strip-rcs-id "0.3.3-DEV")))
+    (should (equal (version-to-list result) '(0 3 3)))))
 
 (ert-deftest vcupp-handle-pre-release/normal-version ()
   "Normal version strings pass through unchanged."

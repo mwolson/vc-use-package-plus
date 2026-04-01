@@ -26,7 +26,8 @@ vcupp fixes several rough edges in the built-in `:vc` support:
 - `package-vc` only scans selected files for dependencies instead of walking an
   entire monorepo checkout.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
-- Pre-release version headers like `0.3.3-DEV` no longer break installation.
+- Pre-release version headers like `0.3.3-DEV` produce a usable package version
+  instead of breaking installation.
 
 vcupp also provides batch helpers (`vcupp-install-packages` and
 `vcupp-native-comp-all`) that let you set up a bootstrap process to install,
