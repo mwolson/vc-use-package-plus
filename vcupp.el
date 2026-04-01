@@ -85,25 +85,45 @@ generated files."
                             (expand-file-name file base-dir) t)))
                  files)))))
 
-(defun vcupp--selected-el-files (pkg-desc)
-  "Return the selected `.el' file paths for PKG-DESC, or nil."
+(defun vcupp--pkg-spec-parts (pkg-desc)
+  "Return (BASE-DIR MAIN-FILE COMPILE-FILES) for PKG-DESC, or nil."
   (let* ((pkg-spec (and (package-vc-p pkg-desc)
                         (package-vc--desc->spec pkg-desc))))
     (when pkg-spec
       (let* ((dir (package-desc-dir pkg-desc))
              (lisp-dir (plist-get pkg-spec :lisp-dir))
-             (base-dir (if lisp-dir (expand-file-name lisp-dir dir) dir))
-             (main-file (plist-get pkg-spec :main-file))
-             (compile-files (plist-get pkg-spec :compile-files))
-             (selected-files
-              (cond
-               (compile-files
-                (append (and main-file (list main-file))
-                        compile-files))
-               (main-file
-                (list main-file)))))
-        (when selected-files
-          (vcupp--expand-el-file-specs base-dir selected-files))))))
+             (base-dir (if lisp-dir (expand-file-name lisp-dir dir) dir)))
+        (list base-dir
+              (plist-get pkg-spec :main-file)
+              (plist-get pkg-spec :compile-files))))))
+
+(defun vcupp--selected-el-files (pkg-desc)
+  "Return the selected `.el' file paths for PKG-DESC, or nil.
+Includes both `:main-file' and `:compile-files'."
+  (pcase (vcupp--pkg-spec-parts pkg-desc)
+    (`(,base-dir ,main-file ,compile-files)
+     (let ((selected-files
+            (cond
+             (compile-files
+              (append (and main-file (list main-file))
+                      compile-files))
+             (main-file
+              (list main-file)))))
+       (when selected-files
+         (vcupp--expand-el-file-specs base-dir selected-files))))))
+
+(defun vcupp--dep-scan-files (pkg-desc)
+  "Return `.el' file paths for dependency scanning of PKG-DESC, or nil.
+Returns only `:main-file' when set, falling back to `:compile-files'.
+This avoids self-dependencies from extension files that declare
+the main package in their own `Package-Requires' header."
+  (pcase (vcupp--pkg-spec-parts pkg-desc)
+    (`(,base-dir ,main-file ,compile-files)
+     (let ((dep-files (cond
+                       (main-file (list main-file))
+                       (compile-files compile-files))))
+       (when dep-files
+         (vcupp--expand-el-file-specs base-dir dep-files))))))
 
 (defun vcupp--compile-targets (pkg-desc)
   "Return a compile target plist for PKG-DESC, or nil."
@@ -129,8 +149,10 @@ generated files."
 
 (defun vcupp--selected-file-deps (orig-fn pkg-desc pkg-dir)
   "Limit dependency scanning for PKG-DESC in PKG-DIR to selected files.
-ORIG-FN is the original `package-vc--unpack-1' function."
-  (let ((selected-files (vcupp--selected-el-files pkg-desc)))
+ORIG-FN is the original `package-vc--unpack-1' function.
+Uses only `:main-file' for scanning to avoid self-dependencies
+from extension files."
+  (let ((selected-files (vcupp--dep-scan-files pkg-desc)))
     (if (not selected-files)
         (funcall orig-fn pkg-desc pkg-dir)
       (cl-letf* ((orig-directory-files (symbol-function 'directory-files))

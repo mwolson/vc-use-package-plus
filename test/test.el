@@ -806,8 +806,8 @@
 ;; vcupp.el -- selected-file-deps filtering
 ;; ---------------------------------------------------------------------------
 
-(ert-deftest vcupp-selected-file-deps/limits-directory-files ()
-  "Only selected files are returned by directory-files within the advice."
+(ert-deftest vcupp-selected-file-deps/uses-main-file-only ()
+  "Dep scanning uses only :main-file, not :compile-files."
   (my-test-with-tmp-dir tmp
     (my-test-write-el-file tmp "main.el"
       ";;; main.el --- test -*- lexical-binding: t -*-\n;; Package-Requires: ((emacs \"29.1\"))\n(provide 'main)\n")
@@ -820,7 +820,8 @@
                       :dir tmp))
            (package-vc-selected-packages
             `((main . (:url "https://example.com"
-                       :compile-files ("main.el")))))
+                       :main-file "main.el"
+                       :compile-files ("ext.el")))))
            captured-files)
       (vcupp--selected-file-deps
        (lambda (_pkg-desc _pkg-dir)
@@ -828,6 +829,34 @@
        pkg-desc tmp)
       (should (= (length captured-files) 1))
       (should (string-match-p "/main\\.el\\'" (car captured-files))))))
+
+(ert-deftest vcupp-dep-scan-files/main-file-only ()
+  "Returns only :main-file even when :compile-files is also set."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "main.el" "(provide 'main)")
+    (my-test-write-el-file tmp "ext.el" "(provide 'ext)")
+    (let* ((pkg-desc (package-desc-create
+                      :name 'main :version '(1 0) :kind 'vc :dir tmp))
+           (package-vc-selected-packages
+            `((main . (:url "https://example.com"
+                       :main-file "main.el"
+                       :compile-files ("ext.el"))))))
+      (let ((files (vcupp--dep-scan-files pkg-desc)))
+        (should (= (length files) 1))
+        (should (string-match-p "/main\\.el\\'" (car files)))))))
+
+(ert-deftest vcupp-dep-scan-files/falls-back-to-compile-files ()
+  "Without :main-file, falls back to :compile-files."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "a.el" "(provide 'a)")
+    (my-test-write-el-file tmp "b.el" "(provide 'b)")
+    (let* ((pkg-desc (package-desc-create
+                      :name 'my-pkg :version '(1 0) :kind 'vc :dir tmp))
+           (package-vc-selected-packages
+            `((my-pkg . (:url "https://example.com"
+                         :compile-files ("a.el" "b.el"))))))
+      (let ((files (vcupp--dep-scan-files pkg-desc)))
+        (should (= (length files) 2))))))
 
 (ert-deftest vcupp-selected-file-deps/no-spec-scans-all ()
   "Without a spec, directory-files is not filtered."
