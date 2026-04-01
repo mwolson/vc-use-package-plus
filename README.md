@@ -1,5 +1,7 @@
 # vcupp (vc-use-package-plus)
 
+![Made for GNU Emacs](assets/badges/made-for-gnu-emacs.svg)
+
 `vcupp` extends Emacs's built-in `use-package :vc` support with a
 few fixes that matter in real configs:
 
