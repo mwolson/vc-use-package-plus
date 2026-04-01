@@ -85,10 +85,10 @@ package:
 (use-package vcupp
   :vc (:url "https://github.com/mwolson/vcupp")
   :init
-  (let* ((dir (expand-file-name "vcupp" package-user-dir))
-         (al (and (file-directory-p dir)
-                  (expand-file-name "vcupp-autoloads" dir))))
-    (when al (load al nil t)))
+  (when-let* ((dir (expand-file-name "vcupp" package-user-dir))
+              ((file-directory-p dir))
+              (al-file (expand-file-name "vcupp-autoloads" dir)))
+    (load al-file nil t))
   :demand t)
 
 ;; After vcupp is loaded, use vcupp-preload-package for other packages.
