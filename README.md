@@ -161,8 +161,11 @@ upgrades, and byte-compiles packages. Two things are needed:
               (concat (file-name-directory load-file-name) "../"))
       :load-files ("init/early-shared-init.el" "init/shared-init.el")
       :setup-forms ((setq my-server-start-p nil))
-      :post-load-function my-run-deferred-tasks
-      :post-install-functions (kind-icon-reset-cache)))
+      :post-install-functions
+      ((lambda ()
+         (vcupp-activate-package 'kind-icon)
+         (require 'kind-icon)
+         (kind-icon-reset-cache)))))
    ```
 
 ## Bootstrap - Native Compilation
