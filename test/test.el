@@ -756,6 +756,100 @@
   (should (equal (vcupp-batch--plist-value '(:bar 1) :foo 99) 99)))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp.el -- self-dependency detection
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-find-self-deps/detects-self-dep ()
+  "Detects packages that depend on themselves."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'foo
+                    :version '(1 0)
+                    :reqs '((emacs (29 1)) (foo (1 0)))
+                    :kind 'vc
+                    :dir "/tmp/foo"))
+         (package-alist (list (list 'foo pkg-desc))))
+    (should (equal (vcupp-find-self-deps) '(foo)))))
+
+(ert-deftest vcupp-find-self-deps/no-self-dep ()
+  "Returns nil when no self-deps exist."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'foo
+                    :version '(1 0)
+                    :reqs '((emacs (29 1)))
+                    :kind 'vc
+                    :dir "/tmp/foo"))
+         (package-alist (list (list 'foo pkg-desc))))
+    (should (null (vcupp-find-self-deps)))))
+
+;; ---------------------------------------------------------------------------
+;; vcupp.el -- duplicate package detection
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-find-duplicate-packages/detects-bare-and-versioned ()
+  "Detects packages with both bare and versioned directories."
+  (my-test-with-tmp-dir tmp
+    (make-directory (expand-file-name "foo" tmp))
+    (make-directory (expand-file-name "foo-1.2" tmp))
+    (make-directory (expand-file-name "bar" tmp))
+    (let ((package-user-dir tmp))
+      (should (equal (vcupp-find-duplicate-packages) '("foo"))))))
+
+(ert-deftest vcupp-find-duplicate-packages/no-duplicates ()
+  "Returns nil when no duplicates exist."
+  (my-test-with-tmp-dir tmp
+    (make-directory (expand-file-name "foo" tmp))
+    (make-directory (expand-file-name "bar-1.2" tmp))
+    (let ((package-user-dir tmp))
+      (should (null (vcupp-find-duplicate-packages))))))
+
+;; ---------------------------------------------------------------------------
+;; vcupp.el -- selected-file-deps filtering
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-selected-file-deps/limits-directory-files ()
+  "Only selected files are returned by directory-files within the advice."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "main.el"
+      ";;; main.el --- test -*- lexical-binding: t -*-\n;; Package-Requires: ((emacs \"29.1\"))\n(provide 'main)\n")
+    (my-test-write-el-file tmp "ext.el"
+      ";;; ext.el --- test -*- lexical-binding: t -*-\n;; Package-Requires: ((main \"1.0\") (emacs \"29.1\"))\n(provide 'ext)\n")
+    (let* ((pkg-desc (package-desc-create
+                      :name 'main
+                      :version '(1 0)
+                      :kind 'vc
+                      :dir tmp))
+           (package-vc-selected-packages
+            `((main . (:url "https://example.com"
+                       :compile-files ("main.el")))))
+           captured-files)
+      (vcupp--selected-file-deps
+       (lambda (_pkg-desc _pkg-dir)
+         (setq captured-files (directory-files tmp t "\\.el\\'")))
+       pkg-desc tmp)
+      (should (= (length captured-files) 1))
+      (should (string-match-p "/main\\.el\\'" (car captured-files))))))
+
+(ert-deftest vcupp-selected-file-deps/no-spec-scans-all ()
+  "Without a spec, directory-files is not filtered."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "main.el"
+      ";;; main.el --- test -*- lexical-binding: t -*-\n(provide 'main)\n")
+    (my-test-write-el-file tmp "ext.el"
+      ";;; ext.el --- test -*- lexical-binding: t -*-\n(provide 'ext)\n")
+    (let* ((pkg-desc (package-desc-create
+                      :name 'main
+                      :version '(1 0)
+                      :kind 'vc
+                      :dir tmp))
+           (package-vc-selected-packages nil)
+           captured-files)
+      (vcupp--selected-file-deps
+       (lambda (_pkg-desc _pkg-dir)
+         (setq captured-files (directory-files tmp t "\\.el\\'")))
+       pkg-desc tmp)
+      (should (>= (length captured-files) 2)))))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp.el -- compile-files keyword registration
 ;; ---------------------------------------------------------------------------
 

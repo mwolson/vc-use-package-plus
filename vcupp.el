@@ -316,6 +316,34 @@ so that every `use-package' form installs its package."
   (when (bound-and-true-p vcupp-install-packages-active-p)
     (setq use-package-always-ensure t)))
 
+(defun vcupp-find-self-deps ()
+  "Return names of packages in `package-alist' that depend on themselves."
+  (let (result)
+    (dolist (entry package-alist)
+      (let ((name (car entry)))
+        (dolist (pkg-desc (cdr entry))
+          (when (assq name (package-desc-reqs pkg-desc))
+            (cl-pushnew name result)))))
+    result))
+
+(defun vcupp-find-duplicate-packages ()
+  "Return names of packages that have both a bare and versioned directory.
+A bare directory (e.g. `foo/') indicates a VC package while a versioned
+directory (e.g. `foo-1.2/') indicates an ELPA package.  Having both for the
+same base name usually means a dependency was pulled from ELPA that a
+`:compile-files' constraint should have prevented."
+  (when (file-directory-p package-user-dir)
+    (let (bare versioned result)
+      (dolist (entry (directory-files package-user-dir nil "\\`[^.]"))
+        (when (file-directory-p (expand-file-name entry package-user-dir))
+          (if (string-match "\\`\\(.+?\\)-[0-9]" entry)
+              (push (match-string 1 entry) versioned)
+            (push entry bare))))
+      (dolist (name bare)
+        (when (member name versioned)
+          (push name result)))
+      (sort result #'string<))))
+
 (defun vcupp-unload-function ()
   "Remove all advice installed by vcupp.
 Called automatically by `unload-feature'."
