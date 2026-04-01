@@ -2,19 +2,49 @@
 
 ![Made for GNU Emacs](assets/badges/made-for-gnu-emacs.svg)
 
-`vcupp` extends Emacs's built-in `use-package :vc` support with a few fixes that
-matter in real configs:
+`vcupp` extends Emacs's built-in `use-package :vc` support with bug fixes and
+batch tooling for package installation and native compilation. Requires Emacs
+30.1 or newer.
 
-- Requires Emacs 30.1 or newer.
+## Why use this library
+
+Emacs 30 added `use-package :vc`, which installs packages directly from Git
+repositories. This is a powerful alternative to MELPA:
+
+- You can install packages that are not on MELPA yet.
+- You can fork a package, add your own improvements, and point `:vc` at your
+  fork.
+- Updates are available immediately when the upstream repo is pushed, rather
+  than waiting for MELPA to rebuild.
+
+vcupp fixes several rough edges in the built-in `:vc` support:
+
 - Monorepo installs honor `:main-file`, `:lisp-dir`, and an added
-  `:compile-files` keyword, which accepts glob patterns such as
-  `"extensions/*.el"`.
+  `:compile-files` keyword (supporting glob patterns like `"extensions/*.el"`),
+  so dependency scanning, byte-compilation, and native compilation are limited
+  to the files you actually use.
 - `package-vc` only scans selected files for dependencies instead of walking an
-  entire monorepo.
+  entire monorepo checkout.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
 - Pre-release version headers like `0.3.3-DEV` no longer break installation.
-- Byte-compilation and native compilation respect the selected files instead of
-  compiling an entire checkout.
+
+vcupp also provides batch helpers (`vcupp-install-packages` and
+`vcupp-native-comp-all`) that let you set up a bootstrap process to install,
+upgrade, and native-compile all your packages from the command line. This means
+normal Emacs startup never triggers package installation or native compilation,
+so you choose when to update and every startup is consistently fast.
+
+## Why not to use it
+
+- All your dependencies are on MELPA, MELPA is working well for you, and you
+  don't need packages from Git.
+- You prefer not to manually manage transitive dependencies of your packages.
+  (If this is only an issue for some packages, you can mix and match: use MELPA
+  for packages with deep dependency trees and `:vc` for the rest.)
+- You don't want to deal with native compilation or set up a bootstrap script.
+  Without bootstrapping, Emacs native-compiles packages on-the-fly via JIT,
+  which causes a one-time slowdown after every update. If that tradeoff is fine
+  for your workflow, the batch helpers here add complexity for little benefit.
 
 ## Easy Install Flow
 
