@@ -71,70 +71,72 @@ installed package:
 ## Bootstrap - Install Packages
 
 `vcupp-install-packages` provides a command-line bootstrap that installs,
-upgrades, and byte-compiles packages before your first real Emacs session.
+upgrades, and byte-compiles packages.  Two things are needed:
 
-Every bootstrap script starts with the same preamble that bootstraps `vcupp`
-itself.  If you customize `package-user-dir`, do that before the
-`use-package vcupp` form.
+1. Call `vcupp-ensure-packages-on-install` from your early-init so that
+   `use-package-always-ensure` is set to `t` during batch installs (and left
+   alone during normal startup):
 
-Minimal example using the default `~/.emacs.d` layout:
+   ```elisp
+   ;; In early-init.el -- after loading vcupp (see Easy Install Flow above)
+   (vcupp-ensure-packages-on-install)
+   ```
 
-```elisp
-;; scripts/install-packages.el
-(require 'package)
-(package-initialize)
-(require 'use-package)
-(setq use-package-vc-prefer-newest t)
+2. Create a batch script that sets `vcupp-batch-args` and calls the installer.
+   vcupp ships [`scripts/install-packages.el`](scripts/install-packages.el)
+   which reads `vcupp-batch-args` and calls `vcupp-install-packages`, so your
+   script only needs to set up the plist and load it.
 
-(use-package vcupp
-  :vc (:url "https://github.com/mwolson/vcupp")
-  :demand t)
-(require 'vcupp-install-packages)
+   Minimal example using the default `~/.emacs.d` layout:
 
-(setq vcupp-batch-args
-      '(:load-files ("early-init.el" "init.el")))
+   ```elisp
+   ;; scripts/install-packages.el
+   (require 'package)
+   (package-initialize)
+   (require 'use-package)
+   (setq use-package-vc-prefer-newest t)
 
-(vcupp-install-packages vcupp-batch-args)
-```
+   (use-package vcupp
+     :vc (:url "https://github.com/mwolson/vcupp")
+     :demand t)
 
-Run it with `emacs -Q --batch -l scripts/install-packages.el`.
+   (setq vcupp-batch-args
+         '(:load-files ("early-init.el" "init.el")))
 
-The install script does not need to set `use-package-always-ensure` in
-`:setup-forms`.  Instead, call `vcupp-ensure-packages-on-install` from your
-early-init (after loading vcupp) and it handles this automatically during
-batch runs:
+   (load (expand-file-name "scripts/install-packages"
+                           (file-name-directory
+                            (locate-library "vcupp"))))
+   ```
 
-```elisp
-;; In early-init.el
-(vcupp-ensure-packages-on-install)
-```
+   Run it with `emacs -Q --batch -l scripts/install-packages.el`.
 
-A real-world example for a config whose files live under `init/`:
+   A real-world example for a config whose files live under `init/`:
 
-```elisp
-;; scripts/install-packages.el
-(require 'package)
-(setq package-user-dir (locate-user-emacs-file "elpa"))
-(package-initialize)
+   ```elisp
+   ;; scripts/install-packages.el
+   (require 'package)
+   (setq package-user-dir (locate-user-emacs-file "elpa"))
+   (package-initialize)
 
-(require 'use-package)
-(setq use-package-vc-prefer-newest t)
+   (require 'use-package)
+   (setq use-package-vc-prefer-newest t)
 
-(use-package vcupp
-  :vc (:url "https://github.com/mwolson/vcupp")
-  :demand t)
-(require 'vcupp-install-packages)
+   (use-package vcupp
+     :vc (:url "https://github.com/mwolson/vcupp")
+     :demand t)
 
-(setq vcupp-batch-args
-      `(:root ,(expand-file-name
-                (concat (file-name-directory load-file-name) "../"))
-        :load-files ("init/early-shared-init.el" "init/shared-init.el")
-        :setup-forms ((setq my-server-start-p nil))
-        :post-load-function my-run-deferred-tasks
-        :post-install-functions (kind-icon-reset-cache)))
+   (setq vcupp-batch-args
+         `(:root ,(expand-file-name
+                   (concat (file-name-directory load-file-name) "../"))
+           :load-files ("init/early-shared-init.el" "init/shared-init.el")
+           :setup-forms ((setq my-server-start-p nil))
+           :post-load-function my-run-deferred-tasks
+           :post-install-functions (kind-icon-reset-cache)))
 
-(vcupp-install-packages vcupp-batch-args)
-```
+   (load (expand-file-name "scripts/install-packages"
+                           (file-name-directory
+                            (locate-library "vcupp"))))
+   ```
 
 ## Bootstrap - Native Compilation
 
@@ -146,25 +148,42 @@ automatically.  It then explicitly native-compiles the configured entry files
 afterward.  In most configs `early-init.el` and `init.el` are enough to
 exercise nearly everything you care about.
 
-```elisp
-;; scripts/native-comp-all.el
-(require 'package)
-(package-initialize)
-(require 'use-package)
-(setq use-package-vc-prefer-newest t)
+Two things are needed:
 
-(use-package vcupp
-  :vc (:url "https://github.com/mwolson/vcupp")
-  :demand t)
-(require 'vcupp-native-comp)
+1. Call `vcupp-suppress-native-comp-jit` from your early-init to silence async
+   native-comp warnings and disable JIT during interactive use (since the batch
+   flow handles compilation ahead of time).  It is a no-op during batch runs:
 
-(setq vcupp-batch-args
-      '(:load-files ("early-init.el" "init.el")))
+   ```elisp
+   ;; In early-init.el -- after loading vcupp (see Easy Install Flow above)
+   (eval-and-compile
+     (vcupp-suppress-native-comp-jit))
+   ```
 
-(vcupp-native-comp-all vcupp-batch-args)
-```
+2. Create a batch script.  Like the install flow, vcupp ships
+   [`scripts/native-comp-all.el`](scripts/native-comp-all.el) which reads
+   `vcupp-batch-args` and calls `vcupp-native-comp-all`:
 
-Run it with `emacs -Q --batch -l scripts/native-comp-all.el`.
+   ```elisp
+   ;; scripts/native-comp-all.el
+   (require 'package)
+   (package-initialize)
+   (require 'use-package)
+   (setq use-package-vc-prefer-newest t)
+
+   (use-package vcupp
+     :vc (:url "https://github.com/mwolson/vcupp")
+     :demand t)
+
+   (setq vcupp-batch-args
+         '(:load-files ("early-init.el" "init.el")))
+
+   (load (expand-file-name "scripts/native-comp-all"
+                           (file-name-directory
+                            (locate-library "vcupp"))))
+   ```
+
+   Run it with `emacs -Q --batch -l scripts/native-comp-all.el`.
 
 To disable `compile-angel` and compile an explicit file list instead, pass
 `:use-compile-angel nil` and a separate `:compile-files`:
@@ -176,17 +195,14 @@ To disable `compile-angel` and compile an explicit file list instead, pass
         :use-compile-angel nil))
 ```
 
-### Coordinating with your init's native-comp settings
+### Putting it all together in early-init.el
 
-During batch runs `vcupp-native-comp-all` manages `compile-angel`,
-`load-prefer-newer`, and related settings.  For interactive Emacs, call
-`vcupp-suppress-native-comp-jit` from your early-init to silence async
-native-comp warnings and disable JIT (since the batch flow handles compilation
-ahead of time).  It is a no-op when `vcupp-native-comp-active-p` is non-nil,
-so the two flows do not conflict:
+A complete early-init.el using both bootstrap features:
 
 ```elisp
-;; In early-init.el -- after loading vcupp
+(require 'use-package)
+(setq use-package-vc-prefer-newest t)
+
 (use-package vcupp
   :vc (:url "https://github.com/mwolson/vcupp")
   :demand t)
@@ -194,6 +210,8 @@ so the two flows do not conflict:
 (eval-and-compile
   (vcupp-suppress-native-comp-jit))
 (vcupp-ensure-packages-on-install)
+
+;; The rest of your early-init...
 ```
 
 ## Keywords (use-package)
