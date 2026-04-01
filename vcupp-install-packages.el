@@ -125,7 +125,7 @@ and `:package-native-compile'."
     (advice-add 'use-package-handler/:vc :before
                 #'vcupp-install-packages--record-install-spec-advice)
     (advice-add 'project-remember-projects-under :override #'ignore)
-    (advice-add 'yes-or-no-p :override (lambda (&rest _) t))
+    (advice-add 'yes-or-no-p :override #'always)
     (vcupp-batch-load-config)
     (vcupp-install-packages--reinstall-changed-vc-urls)
     (vcupp-install-packages--attach-vc-packages-to-branches)

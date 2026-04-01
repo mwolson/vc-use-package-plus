@@ -223,5 +223,17 @@ Has no effect when `vcupp-native-comp-active-p' is non-nil."
     (setq native-comp-async-report-warnings-errors 'silent
           native-comp-jit-compilation nil)))
 
+(defun vcupp-unload-function ()
+  "Remove all advice installed by vcupp.
+Called automatically by `unload-feature'."
+  (advice-remove 'use-package-normalize--vc-arg #'vcupp--normalize-vc-arg)
+  (advice-remove 'package-vc--unpack #'vcupp--save-spec-early)
+  (advice-remove 'package-vc--unpack-1 #'vcupp--selected-file-deps)
+  (advice-remove 'project-remember-projects-under #'vcupp--skip-elpa)
+  (advice-remove 'package-strip-rcs-id #'vcupp--handle-pre-release)
+  (advice-remove 'package--compile #'vcupp--byte-compile-targets)
+  (advice-remove 'package--native-compile-async #'vcupp--native-compile-targets)
+  nil)
+
 (provide 'vcupp)
 ;;; vcupp.el ends here
