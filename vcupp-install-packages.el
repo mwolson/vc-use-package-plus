@@ -119,28 +119,49 @@ directly and therefore bypasses `vcupp--save-spec-early'."
     (while (process-live-p result)
       (accept-process-output result 1))))
 
-(defun vcupp-install-packages--has-upstream-changes (pkg-dir)
-  "Return non-nil if the git repo at PKG-DIR has unfetched upstream commits."
-  (let ((default-directory pkg-dir))
-    (and (zerop (process-file "git" nil nil nil "fetch" "--quiet"))
-         (not (zerop (process-file "git" nil nil nil
-                                   "diff" "--quiet" "HEAD" "@{u}"))))))
+(defvar vcupp-install-packages--pre-upgrade-revs nil
+  "Hash table mapping package names to HEAD revisions before upgrade.")
+
+(defun vcupp-install-packages--skip-unchanged-unpack (orig-fn pkg-desc pkg-dir)
+  "Skip `package-vc--unpack-1' when HEAD has not changed.
+ORIG-FN, PKG-DESC, and PKG-DIR are forwarded when the package has
+new commits."
+  (let* ((name (package-desc-name pkg-desc))
+         (old-rev (gethash name vcupp-install-packages--pre-upgrade-revs))
+         (default-directory pkg-dir)
+         (new-rev (ignore-errors
+                    (car (process-lines "git" "rev-parse" "HEAD")))))
+    (unless (and old-rev new-rev (string= old-rev new-rev))
+      (message "  %s: upgraded" name)
+      (funcall orig-fn pkg-desc pkg-dir))))
 
 (defun vcupp-install-packages--upgrade-vc-packages ()
-  "Pull latest commits for VC packages that have upstream changes.
-Skips packages whose HEAD already matches the upstream tracking
-branch, avoiding unnecessary recompilation."
+  "Pull latest commits for all VC packages synchronously.
+Skips reprocessing (autoloads, compilation) for packages whose
+HEAD did not change after pulling."
   (message "Upgrading VC packages to latest commits...")
-  (dolist (package package-alist)
-    (dolist (pkg-desc (cdr package))
-      (when (package-vc-p pkg-desc)
-        (let ((pkg-dir (package-desc-dir pkg-desc)))
-          (when (and pkg-dir
-                     (file-directory-p (expand-file-name ".git" pkg-dir))
-                     (vcupp-install-packages--has-upstream-changes pkg-dir))
-            (message "  %s: upgrading..." (package-desc-name pkg-desc))
-            (vcupp-install-packages--wait-for-upgrade
-             (package-vc-upgrade pkg-desc)))))))
+  (let ((revs (make-hash-table :test #'eq)))
+    (dolist (entry package-alist)
+      (dolist (pkg-desc (cdr entry))
+        (when-let* (((package-vc-p pkg-desc))
+                    (dir (package-desc-dir pkg-desc))
+                    ((file-directory-p (expand-file-name ".git" dir))))
+          (let ((default-directory dir))
+            (ignore-errors
+              (puthash (package-desc-name pkg-desc)
+                       (car (process-lines "git" "rev-parse" "HEAD"))
+                       revs))))))
+    (let ((vcupp-install-packages--pre-upgrade-revs revs))
+      (advice-add 'package-vc--unpack-1 :around
+                  #'vcupp-install-packages--skip-unchanged-unpack)
+      (unwind-protect
+          (dolist (entry package-alist)
+            (dolist (pkg-desc (cdr entry))
+              (when (package-vc-p pkg-desc)
+                (vcupp-install-packages--wait-for-upgrade
+                 (package-vc-upgrade pkg-desc)))))
+        (advice-remove 'package-vc--unpack-1
+                       #'vcupp-install-packages--skip-unchanged-unpack))))
   (message "Done upgrading packages."))
 
 (defun vcupp-install-packages--clean-stale-vc-elc-files ()
