@@ -1,7 +1,7 @@
 ;; byte-compile-local.el --- -*- lexical-binding: t -*-
 
 (require 'package)
-(package-initialize)
+(package-load-all-descriptors)
 (add-to-list 'load-path default-directory)
 
 (defun my-byte-compile-local-package (lib-name lib-path)
