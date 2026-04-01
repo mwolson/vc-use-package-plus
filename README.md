@@ -40,6 +40,34 @@ Load this package before the rest of your `use-package :vc` declarations:
 `vcupp` adds `:compile-files` for packages that live in a
 monorepo or otherwise need an explicit compile set.
 
+### Preloading package autoloads
+
+`vcupp-preload-package` loads the autoloads for a single package from
+`package-user-dir` without running a full `package-initialize`.  This is useful
+in early-init files where you need a few packages available for `:init` or
+`eval-and-compile` blocks without the startup cost of activating every
+installed package:
+
+```elisp
+;; In early-init.el -- vcupp itself needs a manual bootstrap since
+;; vcupp-preload-package is not yet available at that point.
+(use-package vcupp
+  :vc (:url "https://github.com/mwolson/vcupp")
+  :init
+  (let* ((dir (expand-file-name "vcupp" package-user-dir))
+         (al (and (file-directory-p dir)
+                  (expand-file-name "vcupp-autoloads" dir))))
+    (when al (load al nil t)))
+  :demand t)
+
+;; After vcupp is loaded, use vcupp-preload-package for other packages.
+(use-package compile-angel
+  :vc (:url "https://github.com/jamescherti/compile-angel.el"
+       :main-file "compile-angel.el")
+  :init (vcupp-preload-package 'compile-angel)
+  :defer t)
+```
+
 ## Bootstrap - Install Packages
 
 `vcupp-install-packages` provides a command-line bootstrap that installs,
@@ -159,7 +187,33 @@ so the two flows do not conflict:
   (vcupp-suppress-native-comp-jit))
 ```
 
-## Batch Options
+## Keywords (use-package)
+
+`vcupp` keeps the existing `use-package :vc` keyword set and adds one new
+keyword for compile target selection.
+
+Built-in `use-package :vc` keywords:
+
+- `:url`: Repository URL.
+- `:branch`: Branch name to check out.
+- `:lisp-dir`: Subdirectory containing the package's elisp.
+- `:main-file`: Main entry file for the package.
+- `:vc-backend`: VCS backend symbol.
+- `:rev`: Revision selector. `use-package-vc-prefer-newest` controls the
+  default behavior for `nil`.
+- `:shell-command`: Shell command run after checkout.
+- `:make`: Build command run after checkout.
+- `:ignored-files`: Files to exclude from packaging.
+
+Added by `vcupp`:
+
+- `:compile-files`: Explicit set of `.el` files to scan and compile. This may
+  be a single file or a list of MELPA-style glob patterns such as `"*.el"` or
+  `"extensions/*.el"`. `vcupp` combines these with `:main-file`, respects
+  `:lisp-dir`, and limits dependency scanning, byte-compilation, and native
+  compilation to the selected files.
+
+## Batch Options (vcupp)
 
 Both `vcupp-install-packages` and `vcupp-native-comp-all` accept an optional
 plist (typically via `vcupp-batch-args`).  All batch entry points set
@@ -191,32 +245,6 @@ Additional keys for `vcupp-native-comp-all`:
 |---|---|---|
 | `:compile-files` | same as `:load-files` | Files to `native-compile` after loading. |
 | `:use-compile-angel` | `t` | Enable `compile-angel-on-load-mode` before loading the config for broader compilation coverage. |
-
-## Keywords
-
-`vcupp` keeps the existing `use-package :vc` keyword set and adds one new
-keyword for compile target selection.
-
-Built-in `use-package :vc` keywords:
-
-- `:url`: Repository URL.
-- `:branch`: Branch name to check out.
-- `:lisp-dir`: Subdirectory containing the package's elisp.
-- `:main-file`: Main entry file for the package.
-- `:vc-backend`: VCS backend symbol.
-- `:rev`: Revision selector. `use-package-vc-prefer-newest` controls the
-  default behavior for `nil`.
-- `:shell-command`: Shell command run after checkout.
-- `:make`: Build command run after checkout.
-- `:ignored-files`: Files to exclude from packaging.
-
-Added by `vcupp`:
-
-- `:compile-files`: Explicit set of `.el` files to scan and compile. This may
-  be a single file or a list of MELPA-style glob patterns such as `"*.el"` or
-  `"extensions/*.el"`. `vcupp` combines these with `:main-file`, respects
-  `:lisp-dir`, and limits dependency scanning, byte-compilation, and native
-  compilation to the selected files.
 
 ## License
 

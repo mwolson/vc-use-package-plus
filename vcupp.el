@@ -32,6 +32,33 @@
   "Extensions for `use-package :vc'."
   :group 'convenience)
 
+(defun vcupp-preload-package (sym)
+  "Load the autoloads for package SYM without initializing all packages.
+Looks up SYM in `package-user-dir' (checking both VC-style and
+versioned directory names) and loads its autoloads file if found.
+
+This is useful in early-init files where you want specific packages
+available (e.g., for `:init' forms or `eval-and-compile' blocks)
+without paying the cost of a full `package-initialize'."
+  (when-let* ((pkg-dirs (and (file-directory-p package-user-dir)
+                             (directory-files package-user-dir t "\\`[^.]")))
+              (sym-name (symbol-name sym))
+              (pkg-dir (or (let ((vc-dir (expand-file-name sym-name
+                                                           package-user-dir)))
+                             (and (file-directory-p vc-dir) vc-dir))
+                           (let ((regexp (format "\\`%s-[0-9]"
+                                                 (regexp-quote sym-name))))
+                             (cl-find-if
+                              (lambda (d)
+                                (string-match-p
+                                 regexp (file-name-nondirectory d)))
+                              pkg-dirs))))
+              ((file-directory-p pkg-dir))
+              (autoload-name (expand-file-name
+                              (format "%s-autoloads" sym-name)
+                              pkg-dir)))
+    (load autoload-name nil t)))
+
 (defun vcupp--generated-el-file-p (path)
   "Return non-nil if PATH names a generated `-autoloads' or `-pkg' file."
   (string-match-p "-\\(?:autoloads\\|pkg\\)\\.el\\'" path))
