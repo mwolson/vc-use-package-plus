@@ -1,10 +1,13 @@
 ;;; vcupp-install-packages.el --- Install packages declared by an Emacs config -*- lexical-binding: t -*-
 
 ;; Author: Michael Olson
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.1") (use-package "2.4"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; URL: https://github.com/mwolson/vcupp
+
+;;; Commentary:
+
+;; Batch package installation with VC URL change detection, detached-HEAD
+;; recovery, and stale .elc cleanup.  See the vcupp README for usage.
 
 ;;; Code:
 

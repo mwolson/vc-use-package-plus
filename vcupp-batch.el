@@ -1,10 +1,13 @@
 ;;; vcupp-batch.el --- Shared batch helpers for vcupp -*- lexical-binding: t -*-
 
 ;; Author: Michael Olson
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; URL: https://github.com/mwolson/vcupp
+
+;;; Commentary:
+
+;; Shared infrastructure for `vcupp-install-packages' and `vcupp-native-comp'
+;; batch entry points.  See the vcupp README for usage.
 
 ;;; Code:
 
@@ -28,7 +31,7 @@ Entries may be absolute or relative to `vcupp-batch-root'.")
 
 (defvar vcupp-batch-compile-files nil
   "Files to `native-compile' after loading the config.
-Defaults to `vcupp-batch-load-files'.")
+Defaults to the value of variable `vcupp-batch-load-files'.")
 
 (defvar vcupp-batch-setup-forms nil
   "Forms evaluated before the config files are loaded.")

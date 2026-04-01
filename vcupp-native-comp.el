@@ -1,10 +1,13 @@
 ;;; vcupp-native-comp.el --- Native-compile an Emacs config -*- lexical-binding: t -*-
 
 ;; Author: Michael Olson
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; URL: https://github.com/mwolson/vcupp
+
+;;; Commentary:
+
+;; Batch native-compilation with optional compile-angel integration.
+;; See the vcupp README for usage.
 
 ;;; Code:
 
