@@ -27,7 +27,7 @@
 Entries may be absolute or relative to `vcupp-batch-root'.")
 
 (defvar vcupp-batch-compile-files nil
-  "Files to native-compile after loading the config.
+  "Files to `native-compile' after loading the config.
 Defaults to `vcupp-batch-load-files'.")
 
 (defvar vcupp-batch-setup-forms nil
@@ -53,6 +53,7 @@ Patterns are resolved relative to `vcupp-batch-root'.")
   "Value to assign to `package-native-compile' during installs.")
 
 (defun vcupp-batch--plist-value (args prop fallback)
+  "Return PROP from ARGS if present, otherwise FALLBACK."
   (if (plist-member args prop)
       (plist-get args prop)
     fallback))
@@ -116,12 +117,13 @@ Patterns are resolved relative to `vcupp-batch-root'.")
       (user-error "Set :load-files or `vcupp-batch-load-files' before loading this script")))
 
 (defun vcupp-batch-compile-files ()
-  "Return config files to native-compile for the active batch invocation."
+  "Return config files to `native-compile' for the active batch invocation."
   (or vcupp-batch-compile-files
       (vcupp-batch-load-files)))
 
 (defun vcupp-batch-run-setup ()
-  "Run preload features, setup forms, and cleanup steps."
+  "Run preload features, setup forms, and cleanup."
+  (setq load-prefer-newer t)
   (dolist (feature vcupp-batch-preload-features)
     (require feature))
   (dolist (form vcupp-batch-setup-forms)

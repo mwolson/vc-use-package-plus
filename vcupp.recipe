@@ -1,0 +1,4 @@
+(vcupp
+ :fetcher github
+ :repo "mwolson/vcupp"
+ :files (:defaults))

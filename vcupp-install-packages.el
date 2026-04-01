@@ -14,13 +14,17 @@
   "Normalized VC specs declared by `use-package' during this run.")
 
 (defun vcupp-install-packages--record-vc-spec (name _keyword arg _rest _state)
+  "Store the normalized VC spec ARG for package NAME."
   (setf (alist-get name vcupp-install-packages--desired-vc-specs nil nil #'eq)
         arg))
 
 (defun vcupp-install-packages--record-install-spec-advice (name keyword arg rest state)
+  "Advice wrapper that records the VC spec for NAME.
+KEYWORD, ARG, REST, and STATE are forwarded from `use-package-handler/:vc'."
   (vcupp-install-packages--record-vc-spec name keyword arg rest state))
 
 (defun vcupp-install-packages--reinstall-changed-vc-urls ()
+  "Reinstall VC packages whose configured source URL has changed."
   (message "Checking VC packages for source URL changes...")
   (dolist (pkg-alist-entry package-alist)
     (dolist (pkg-desc (cdr pkg-alist-entry))
@@ -53,6 +57,7 @@
                  desired-rev)))))))))
 
 (defun vcupp-install-packages--attach-vc-packages-to-branches ()
+  "Check out a tracking branch for VC packages stuck on detached HEAD."
   (message "Checking VC packages for detached HEAD...")
   (dolist (pkg-alist-entry package-alist)
     (dolist (pkg-desc (cdr pkg-alist-entry))
@@ -86,6 +91,7 @@
                                   "checkout" "-f" branch)))))))))))
 
 (defun vcupp-install-packages--clean-stale-vc-elc-files ()
+  "Delete `.elc' files from VC packages where the `.el' is newer."
   (message "Cleaning stale .elc files from VC packages...")
   (dolist (pkg-alist-entry package-alist)
     (dolist (pkg-desc (cdr pkg-alist-entry))
@@ -101,7 +107,7 @@
 (defun vcupp-install-packages (&optional args)
   "Install and upgrade packages declared by the current config.
 
-ARGS is an optional plist. Supported keys are `:root', `:load-files',
+ARGS is an optional plist.  Supported keys are `:root', `:load-files',
 `:setup-forms', `:preload-features', `:delete-elc-globs',
 `:post-load-function', `:post-install-functions', `:refresh-contents',
 and `:package-native-compile'."

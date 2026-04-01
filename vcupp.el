@@ -31,9 +31,13 @@
   :group 'convenience)
 
 (defun vcupp--generated-el-file-p (path)
+  "Return non-nil if PATH names a generated `-autoloads' or `-pkg' file."
   (string-match-p "-\\(?:autoloads\\|pkg\\)\\.el\\'" path))
 
 (defun vcupp--expand-el-file-specs (base-dir files)
+  "Expand glob patterns in FILES relative to BASE-DIR.
+Returns a deduplicated list of existing `.el' paths, excluding
+generated files."
   (delete-dups
    (delq nil
          (apply #'append
@@ -48,6 +52,7 @@
                  files)))))
 
 (defun vcupp--selected-el-files (pkg-desc)
+  "Return the selected `.el' file paths for PKG-DESC, or nil."
   (let* ((pkg-spec (and (package-vc-p pkg-desc)
                         (package-vc--desc->spec pkg-desc))))
     (when pkg-spec
@@ -67,6 +72,7 @@
           (vcupp--expand-el-file-specs base-dir selected-files))))))
 
 (defun vcupp--compile-targets (pkg-desc)
+  "Return a compile target plist for PKG-DESC, or nil."
   (let* ((pkg-spec (and (package-vc-p pkg-desc)
                         (package-vc--desc->spec pkg-desc))))
     (when pkg-spec
@@ -82,11 +88,14 @@
                (list :type 'dir :path full-dir))))))))
 
 (defun vcupp--save-spec-early (pkg-desc pkg-spec &optional _rev)
+  "Save PKG-SPEC for PKG-DESC before unpack so upgrades can find it."
   (when-let* ((name (package-desc-name pkg-desc))
               ((not (alist-get name package-vc-selected-packages nil nil #'string=))))
     (push (cons name pkg-spec) package-vc-selected-packages)))
 
 (defun vcupp--selected-file-deps (orig-fn pkg-desc pkg-dir)
+  "Limit dependency scanning for PKG-DESC in PKG-DIR to selected files.
+ORIG-FN is the original `package-vc--unpack-1' function."
   (let ((selected-files (vcupp--selected-el-files pkg-desc)))
     (if (not selected-files)
         (funcall orig-fn pkg-desc pkg-dir)
@@ -99,19 +108,22 @@
         (funcall orig-fn pkg-desc pkg-dir)))))
 
 (defun vcupp--skip-elpa (orig-fn dir &rest args)
+  "Prevent `project-remember-projects-under' from indexing `elpa/' checkouts.
+ORIG-FN is called with DIR and ARGS only when DIR is outside `package-user-dir'."
   (unless (string-prefix-p (expand-file-name package-user-dir)
                            (expand-file-name dir))
     (apply orig-fn dir args)))
 
 (defun vcupp--handle-pre-release (orig-fn str)
-  (or (condition-case nil (funcall orig-fn str) (error nil))
-      (when str
-        (condition-case nil
-            (funcall orig-fn (replace-regexp-in-string
-                              "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
-          (error nil)))))
+  "Ignore version headers that `package-strip-rcs-id' cannot parse.
+ORIG-FN is the original function, STR is the version string.
+Returns nil for unparseable versions so `package-vc' assigns a
+default instead of signaling an error."
+  (condition-case nil (funcall orig-fn str) (error nil)))
 
 (defun vcupp--byte-compile-targets (orig-fn pkg-desc)
+  "Byte-compile only selected files for PKG-DESC.
+ORIG-FN is the original `package--compile' function."
   (let ((target (vcupp--compile-targets pkg-desc)))
     (if (not target)
         (funcall orig-fn pkg-desc)
@@ -124,6 +136,8 @@
            (byte-recompile-directory (plist-get target :path) 0 'force)))))))
 
 (defun vcupp--native-compile-targets (orig-fn pkg-desc)
+  "Native-compile only selected files for PKG-DESC.
+ORIG-FN is the original `package--native-compile-async' function."
   (when (native-comp-available-p)
     (let ((target (vcupp--compile-targets pkg-desc)))
       (if (not target)
@@ -148,6 +162,8 @@
   (add-to-list 'use-package-vc-valid-keywords :compile-files))
 
 (defun vcupp--normalize-vc-arg (orig-fn arg)
+  "Normalize a `use-package :vc' ARG that may contain `:compile-files'.
+ORIG-FN is the original `use-package-normalize--vc-arg' function."
   (if (not (member :compile-files arg))
       (funcall orig-fn arg)
     (cl-flet* ((ensure-string (s)
@@ -193,6 +209,17 @@
                   (normalize :rev (car (alist-get :rev opts))))))))))
 
 (advice-add 'use-package-normalize--vc-arg :around #'vcupp--normalize-vc-arg)
+
+(defun vcupp-suppress-native-comp-jit ()
+  "Configure native-comp for configs that use `vcupp-native-comp-all'.
+Silences async native-comp warnings and disables JIT compilation,
+since the batch native-comp flow handles compilation ahead of time.
+Has no effect when `vcupp-native-comp-active-p' is non-nil."
+  (unless (bound-and-true-p vcupp-native-comp-active-p)
+    (eval-when-compile (require 'comp-run))
+    (require 'comp-run)
+    (setq native-comp-async-report-warnings-errors 'silent
+          native-comp-jit-compilation nil)))
 
 (provide 'vcupp)
 ;;; vcupp.el ends here

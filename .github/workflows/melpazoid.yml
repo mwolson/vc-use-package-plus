@@ -1,0 +1,29 @@
+# melpazoid <https://github.com/riscy/melpazoid> build checks.
+
+name: melpazoid
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Emacs and Melpazoid
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get install emacs && emacs --version
+          git clone https://github.com/riscy/melpazoid.git ~/melpazoid
+          pip install ~/melpazoid
+      - name: Check
+        run: npm run check
+      - name: Test
+        run: npm run test
+      - name: Run Melpazoid
+        run: |
+          RECIPE="$(tr '\n' ' ' < vcupp.recipe)"
+          export LOCAL_REPO="${{ github.workspace }}"
+          export RECIPE
+          export EXIST_OK=true
+          echo "$GITHUB_REF"
+          make -C ~/melpazoid

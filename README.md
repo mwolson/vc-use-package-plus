@@ -10,7 +10,7 @@ few fixes that matter in real configs:
 - `package-vc` only scans selected files for dependencies instead of walking an
   entire monorepo.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
-- Pre-release headers like `0.3.3-DEV` still produce a usable package version.
+- Pre-release version headers like `0.3.3-DEV` no longer break installation.
 - Byte-compilation and native compilation respect the selected files instead of
   compiling an entire checkout.
 
@@ -108,11 +108,27 @@ emacs -Q --batch -l scripts/bootstrap-native-comp.el
 ```
 
 This path installs `compile-angel` with `package-vc-install` if needed, then
-enables `compile-angel-on-load-mode` to expand coverage to packages and other
-libraries loaded during the batch run. It still explicitly calls
-`native-compile` on the configured entry files afterward, but in most configs
-`early-init.el` and `init.el` are enough to exercise nearly everything you care
-about.
+enables `compile-angel-on-load-mode` *before* loading the config so that
+packages and other libraries loaded during init are byte-compiled and
+native-compiled automatically.  It still explicitly calls `native-compile` on
+the configured entry files afterward, but in most configs `early-init.el` and
+`init.el` are enough to exercise nearly everything you care about.
+
+### Coordinating with your init's native-comp settings
+
+During batch runs, `vcupp-native-comp-all` manages `compile-angel`,
+`load-prefer-newer`, and related settings.  For interactive Emacs,
+call `vcupp-suppress-native-comp-jit` from your early-init to silence
+async native-comp warnings and disable JIT (since the batch flow
+handles compilation ahead of time).  It is a no-op when
+`vcupp-native-comp-active-p` is non-nil, so the two flows do not
+conflict:
+
+```elisp
+;; In early-init.el
+(eval-and-compile
+  (vcupp-suppress-native-comp-jit))
+```
 
 Alternative: disable `compile-angel` and compile an explicit file list:
 
@@ -149,12 +165,16 @@ config-specific toggles, or post-install hooks:
         :compile-files ("init/settings.el"
                         "init/early-shared-init.el"
                         "init/shared-init.el")
-        :setup-forms ((setq my-install-packages t)
-                      (setq my-native-comp-enable nil))
+        :setup-forms ((setq my-install-packages t))
         :use-compile-angel t
         :post-load-function my-run-deferred-tasks
         :post-install-functions (kind-icon-reset-cache kind-icon-preview-all)))
 ```
+
+All batch entry points set `load-prefer-newer` to `t`, so stale `.elc` files
+are silently bypassed without needing to delete them.  The `:delete-elc-globs`
+key is still available for cases where stale `.elc` files are so broken that
+they cause load errors even when Emacs prefers `.el`.
 
 See [`vcupp-batch.el`](vcupp-batch.el),
 [`vcupp-install-packages.el`](vcupp-install-packages.el),
