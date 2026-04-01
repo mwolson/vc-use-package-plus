@@ -85,10 +85,8 @@ upgrades, and byte-compiles packages.  Two things are needed:
    (vcupp-ensure-packages-on-install)
    ```
 
-2. Create a batch script that sets `vcupp-batch-args` and calls the installer.
-   vcupp ships [`scripts/install-packages.el`](scripts/install-packages.el)
-   which reads `vcupp-batch-args` and calls `vcupp-install-packages`, so your
-   script only needs to set up the plist and load it.
+2. Create a batch script that bootstraps vcupp, sets `vcupp-batch-args`,
+   and calls `vcupp-install-packages`.
 
    Minimal example using the default `~/.emacs.d` layout:
 
@@ -102,13 +100,12 @@ upgrades, and byte-compiles packages.  Two things are needed:
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")
      :demand t)
+   (require 'vcupp-install-packages)
 
    (setq vcupp-batch-args
          '(:load-files ("early-init.el" "init.el")))
 
-   (load (expand-file-name "scripts/install-packages"
-                           (file-name-directory
-                            (locate-library "vcupp"))))
+   (vcupp-install-packages vcupp-batch-args)
    ```
 
    Run it with `emacs -Q --batch -l scripts/install-packages.el`.
@@ -127,6 +124,7 @@ upgrades, and byte-compiles packages.  Two things are needed:
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")
      :demand t)
+   (require 'vcupp-install-packages)
 
    (setq vcupp-batch-args
          `(:root ,(expand-file-name
@@ -136,9 +134,7 @@ upgrades, and byte-compiles packages.  Two things are needed:
            :post-load-function my-run-deferred-tasks
            :post-install-functions (kind-icon-reset-cache)))
 
-   (load (expand-file-name "scripts/install-packages"
-                           (file-name-directory
-                            (locate-library "vcupp"))))
+   (vcupp-install-packages vcupp-batch-args)
    ```
 
 ## Bootstrap - Native Compilation
@@ -163,9 +159,8 @@ Two things are needed:
      (vcupp-suppress-native-comp-jit))
    ```
 
-2. Create a batch script.  Like the install flow, vcupp ships
-   [`scripts/native-comp-all.el`](scripts/native-comp-all.el) which reads
-   `vcupp-batch-args` and calls `vcupp-native-comp-all`:
+2. Create a batch script that bootstraps vcupp, sets `vcupp-batch-args`,
+   and calls `vcupp-native-comp-all`:
 
    ```elisp
    ;; scripts/native-comp-all.el
@@ -177,13 +172,12 @@ Two things are needed:
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")
      :demand t)
+   (require 'vcupp-native-comp)
 
    (setq vcupp-batch-args
          '(:load-files ("early-init.el" "init.el")))
 
-   (load (expand-file-name "scripts/native-comp-all"
-                           (file-name-directory
-                            (locate-library "vcupp"))))
+   (vcupp-native-comp-all vcupp-batch-args)
    ```
 
    Run it with `emacs -Q --batch -l scripts/native-comp-all.el`.
