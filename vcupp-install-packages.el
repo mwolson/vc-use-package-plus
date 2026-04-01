@@ -160,8 +160,7 @@ and `:package-native-compile'."
           (vcupp-install-packages--clean-stale-vc-elc-files)
           (when vcupp-batch-post-install-functions
             (package-load-all-descriptors))
-          (dolist (fn vcupp-batch-post-install-functions)
-            (funcall fn)))
+          (vcupp-batch-run-post-install))
       (setq vcupp-install-packages-active-p nil))))
 
 (provide 'vcupp-install-packages)

@@ -344,6 +344,28 @@
       (should my-test-post-load-called))))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp-batch.el -- post-install runner
+;; ---------------------------------------------------------------------------
+
+(defvar my-test-post-install-marker nil)
+
+(ert-deftest vcupp-batch-run-post-install/evaluates-forms ()
+  "Post-install forms are evaluated."
+  (let ((my-test-post-install-marker nil)
+        (vcupp-batch-post-install-functions
+         '((setq my-test-post-install-marker 'done))))
+    (vcupp-batch-run-post-install)
+    (should (eq my-test-post-install-marker 'done))))
+
+(ert-deftest vcupp-batch-run-post-install/calls-functions ()
+  "Post-install function entries are called."
+  (let ((my-test-post-install-marker nil)
+        (vcupp-batch-post-install-functions
+         (list (lambda () (setq my-test-post-install-marker 'done)))))
+    (vcupp-batch-run-post-install)
+    (should (eq my-test-post-install-marker 'done))))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp-batch.el -- with-effective-args macro
 ;; ---------------------------------------------------------------------------
 

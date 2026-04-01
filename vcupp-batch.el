@@ -47,7 +47,7 @@ Patterns are resolved relative to `vcupp-batch-root'.")
   "Function called after the config files finish loading.")
 
 (defvar vcupp-batch-post-install-functions nil
-  "Functions called after install or upgrade completes.")
+  "Functions or forms run after install or upgrade completes.")
 
 (defvar vcupp-batch-refresh-contents t
   "Whether to run `package-refresh-contents' before loading the config.")
@@ -142,6 +142,14 @@ Patterns are resolved relative to `vcupp-batch-root'.")
     (load-file (vcupp-batch-expand-file file)))
   (when vcupp-batch-post-load-function
     (funcall vcupp-batch-post-load-function)))
+
+(defun vcupp-batch-run-post-install ()
+  "Run `vcupp-batch-post-install-functions' after install completes.
+Each entry may be a function designator or a form to evaluate."
+  (dolist (entry vcupp-batch-post-install-functions)
+    (if (functionp entry)
+        (funcall entry)
+      (eval entry t))))
 
 (provide 'vcupp-batch)
 ;;; vcupp-batch.el ends here

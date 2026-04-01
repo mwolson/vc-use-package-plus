@@ -162,10 +162,9 @@ upgrades, and byte-compiles packages. Two things are needed:
       :load-files ("init/early-shared-init.el" "init/shared-init.el")
       :setup-forms ((setq my-server-start-p nil))
       :post-install-functions
-      ((lambda ()
-         (vcupp-activate-package 'kind-icon)
-         (require 'kind-icon)
-         (kind-icon-reset-cache)))))
+      ((vcupp-activate-package 'kind-icon)
+       (require 'kind-icon)
+       (kind-icon-reset-cache))))
    ```
 
 ## Bootstrap - Native Compilation
