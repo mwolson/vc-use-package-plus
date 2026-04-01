@@ -161,10 +161,11 @@ upgrades, and byte-compiles packages. Two things are needed:
               (concat (file-name-directory load-file-name) "../"))
       :load-files ("init/early-shared-init.el" "init/shared-init.el")
       :setup-forms ((setq my-server-start-p nil))
-      :post-install-functions
+      :post-install-forms
       ((vcupp-activate-package 'kind-icon)
        (require 'kind-icon)
-       (kind-icon-reset-cache))))
+       (kind-icon-reset-cache)
+       (kind-icon-preview-all))))
    ```
 
 ## Bootstrap - Native Compilation
@@ -273,20 +274,20 @@ plist as their first argument. All batch entry points set `load-prefer-newer` to
 
 Shared keys (used by both entry points):
 
-| Key                   | Default                       | Description                                                                                                                 |
-| --------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `:root`               | `user-emacs-directory`        | Root directory for resolving relative paths.                                                                                |
-| `:load-files`         | `("early-init.el" "init.el")` | Config files to load.                                                                                                       |
-| `:setup-forms`        | `nil`                         | Forms evaluated before loading (e.g., setting variables).                                                                   |
-| `:preload-features`   | `nil`                         | Features to `require` before loading.                                                                                       |
-| `:delete-elc-globs`   | `nil`                         | Glob patterns whose `.elc` matches are deleted before load. Rarely needed since `load-prefer-newer` handles stale bytecode. |
-| `:post-load-function` | `nil`                         | Function called after config files finish loading.                                                                          |
+| Key                 | Default                       | Description                                                                                                                 |
+| ------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `:root`             | `user-emacs-directory`        | Root directory for resolving relative paths.                                                                                |
+| `:load-files`       | `("early-init.el" "init.el")` | Config files to load.                                                                                                       |
+| `:setup-forms`      | `nil`                         | Forms evaluated before loading (e.g., setting variables).                                                                   |
+| `:preload-features` | `nil`                         | Features to `require` before loading.                                                                                       |
+| `:delete-elc-globs` | `nil`                         | Glob patterns whose `.elc` matches are deleted before load. Rarely needed since `load-prefer-newer` handles stale bytecode. |
+| `:post-load-forms`  | `nil`                         | Forms evaluated after config files finish loading.                                                                          |
 
 Additional keys for `vcupp-install-packages`:
 
 | Key                       | Default | Description                                                 |
 | ------------------------- | ------- | ----------------------------------------------------------- |
-| `:post-install-functions` | `nil`   | Functions called after install/upgrade completes.           |
+| `:post-install-forms`     | `nil`   | Forms evaluated after install/upgrade completes.            |
 | `:refresh-contents`       | `t`     | Whether to run `package-refresh-contents` first.            |
 | `:package-native-compile` | `t`     | Value assigned to `package-native-compile` during installs. |
 

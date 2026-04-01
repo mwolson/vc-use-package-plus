@@ -3,6 +3,11 @@
 This repository is for an Emacs library (`vcupp`) that extends `use-package :vc`
 support. It requires Emacs 30.1 or newer.
 
+## Tips
+
+- When making changes to data in existing code, try to keep things in
+  alphabetical order when it's reasonable to do so.
+
 ## Planning
 
 Prefer to write plans in the `plans/` directory.

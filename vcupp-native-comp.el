@@ -65,7 +65,7 @@ Returns state needed by `vcupp-native-comp--disable-compile-angel'."
 
 ARGS is an optional plist.  Supported keys are `:root', `:load-files',
 `:compile-files', `:setup-forms', `:preload-features',
-`:delete-elc-globs', `:post-load-function', and `:use-compile-angel'.
+`:delete-elc-globs', `:post-load-forms', and `:use-compile-angel'.
 
 When `:use-compile-angel' is non-nil (the default),
 `compile-angel-on-load-mode' is enabled before the config files are

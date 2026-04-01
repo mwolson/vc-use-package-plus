@@ -203,8 +203,8 @@
         (vcupp-batch-setup-forms nil)
         (vcupp-batch-preload-features nil)
         (vcupp-batch-delete-elc-globs nil)
-        (vcupp-batch-post-load-function nil)
-        (vcupp-batch-post-install-functions nil)
+        (vcupp-batch-post-load-forms nil)
+        (vcupp-batch-post-install-forms nil)
         (vcupp-batch-refresh-contents t)
         (vcupp-batch-package-native-compile t))
     (let ((result (vcupp-batch-effective-args)))
@@ -223,8 +223,8 @@
         (vcupp-batch-setup-forms nil)
         (vcupp-batch-preload-features nil)
         (vcupp-batch-delete-elc-globs nil)
-        (vcupp-batch-post-load-function nil)
-        (vcupp-batch-post-install-functions nil)
+        (vcupp-batch-post-load-forms nil)
+        (vcupp-batch-post-install-forms nil)
         (vcupp-batch-refresh-contents t)
         (vcupp-batch-package-native-compile t))
     (let ((result (vcupp-batch-effective-args
@@ -246,8 +246,8 @@
         (vcupp-batch-setup-forms nil)
         (vcupp-batch-preload-features nil)
         (vcupp-batch-delete-elc-globs nil)
-        (vcupp-batch-post-load-function nil)
-        (vcupp-batch-post-install-functions nil)
+        (vcupp-batch-post-load-forms nil)
+        (vcupp-batch-post-install-forms nil)
         (vcupp-batch-refresh-contents t)
         (vcupp-batch-package-native-compile t))
     (let ((result (vcupp-batch-effective-args
@@ -327,19 +327,31 @@
     (setq my-test-load-order nil)
     (let ((vcupp-batch-root tmp)
           (vcupp-batch-load-files '("a.el" "b.el"))
-          (vcupp-batch-post-load-function nil))
+          (vcupp-batch-post-load-forms nil))
       (vcupp-batch-load-config)
       (should (equal my-test-load-order '(b a))))))
 
-(ert-deftest vcupp-batch-load-config/calls-post-load-function ()
-  "Post-load function is called after loading."
+(ert-deftest vcupp-batch-load-config/evaluates-post-load-forms ()
+  "Post-load forms are evaluated after loading."
   (my-test-with-tmp-dir tmp
     (my-test-write-el-file tmp "a.el" "(provide 'a)")
     (setq my-test-post-load-called nil)
     (let ((vcupp-batch-root tmp)
           (vcupp-batch-load-files '("a.el"))
-          (vcupp-batch-post-load-function
-           (lambda () (setq my-test-post-load-called t))))
+          (vcupp-batch-post-load-forms
+           '((setq my-test-post-load-called t))))
+      (vcupp-batch-load-config)
+      (should my-test-post-load-called))))
+
+(ert-deftest vcupp-batch-load-config/calls-post-load-functions ()
+  "Post-load function entries are called after loading."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "a.el" "(provide 'a)")
+    (setq my-test-post-load-called nil)
+    (let ((vcupp-batch-root tmp)
+          (vcupp-batch-load-files '("a.el"))
+          (vcupp-batch-post-load-forms
+           (list (lambda () (setq my-test-post-load-called t)))))
       (vcupp-batch-load-config)
       (should my-test-post-load-called))))
 
@@ -352,7 +364,7 @@
 (ert-deftest vcupp-batch-run-post-install/evaluates-forms ()
   "Post-install forms are evaluated."
   (let ((my-test-post-install-marker nil)
-        (vcupp-batch-post-install-functions
+        (vcupp-batch-post-install-forms
          '((setq my-test-post-install-marker 'done))))
     (vcupp-batch-run-post-install)
     (should (eq my-test-post-install-marker 'done))))
@@ -360,7 +372,7 @@
 (ert-deftest vcupp-batch-run-post-install/calls-functions ()
   "Post-install function entries are called."
   (let ((my-test-post-install-marker nil)
-        (vcupp-batch-post-install-functions
+        (vcupp-batch-post-install-forms
          (list (lambda () (setq my-test-post-install-marker 'done)))))
     (vcupp-batch-run-post-install)
     (should (eq my-test-post-install-marker 'done))))
@@ -378,8 +390,8 @@
         (vcupp-batch-setup-forms nil)
         (vcupp-batch-preload-features nil)
         (vcupp-batch-delete-elc-globs nil)
-        (vcupp-batch-post-load-function nil)
-        (vcupp-batch-post-install-functions nil)
+        (vcupp-batch-post-load-forms nil)
+        (vcupp-batch-post-install-forms nil)
         (vcupp-batch-refresh-contents t)
         (vcupp-batch-package-native-compile t))
     (vcupp-batch-with-effective-args '(:root "/test/" :load-files ("x.el"))

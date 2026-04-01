@@ -136,7 +136,7 @@ script moves on."
 
 ARGS is an optional plist.  Supported keys are `:root', `:load-files',
 `:setup-forms', `:preload-features', `:delete-elc-globs',
-`:post-load-function', `:post-install-functions', `:refresh-contents',
+`:post-load-forms', `:post-install-forms', `:refresh-contents',
 and `:package-native-compile'."
   (vcupp-batch-with-effective-args args
     (setq vcupp-install-packages--desired-vc-specs nil)
@@ -158,7 +158,7 @@ and `:package-native-compile'."
           (vcupp-install-packages--attach-vc-packages-to-branches)
           (vcupp-install-packages--upgrade-vc-packages)
           (vcupp-install-packages--clean-stale-vc-elc-files)
-          (when vcupp-batch-post-install-functions
+          (when vcupp-batch-post-install-forms
             (package-load-all-descriptors))
           (vcupp-batch-run-post-install))
       (setq vcupp-install-packages-active-p nil))))

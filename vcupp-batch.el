@@ -43,11 +43,11 @@ Defaults to the value of variable `vcupp-batch-load-files'.")
   "Glob patterns whose matching `.elc' files are deleted before load.
 Patterns are resolved relative to `vcupp-batch-root'.")
 
-(defvar vcupp-batch-post-load-function nil
-  "Function called after the config files finish loading.")
+(defvar vcupp-batch-post-load-forms nil
+  "Forms run after the config files finish loading.")
 
-(defvar vcupp-batch-post-install-functions nil
-  "Functions or forms run after install or upgrade completes.")
+(defvar vcupp-batch-post-install-forms nil
+  "Forms run after install or upgrade completes.")
 
 (defvar vcupp-batch-refresh-contents t
   "Whether to run `package-refresh-contents' before loading the config.")
@@ -81,10 +81,10 @@ Patterns are resolved relative to `vcupp-batch-root'.")
                                                       vcupp-batch-preload-features)
           :delete-elc-globs (vcupp-batch--plist-value args :delete-elc-globs
                                                       vcupp-batch-delete-elc-globs)
-          :post-load-function (vcupp-batch--plist-value args :post-load-function
-                                                        vcupp-batch-post-load-function)
-          :post-install-functions (vcupp-batch--plist-value args :post-install-functions
-                                                            vcupp-batch-post-install-functions)
+          :post-load-forms (vcupp-batch--plist-value args :post-load-forms
+                                                     vcupp-batch-post-load-forms)
+          :post-install-forms (vcupp-batch--plist-value args :post-install-forms
+                                                        vcupp-batch-post-install-forms)
           :refresh-contents (vcupp-batch--plist-value args :refresh-contents
                                                       vcupp-batch-refresh-contents)
           :package-native-compile (vcupp-batch--plist-value args :package-native-compile
@@ -100,9 +100,9 @@ Patterns are resolved relative to `vcupp-batch-root'.")
           (vcupp-batch-setup-forms (plist-get effective-args :setup-forms))
           (vcupp-batch-preload-features (plist-get effective-args :preload-features))
           (vcupp-batch-delete-elc-globs (plist-get effective-args :delete-elc-globs))
-          (vcupp-batch-post-load-function (plist-get effective-args :post-load-function))
-          (vcupp-batch-post-install-functions
-           (plist-get effective-args :post-install-functions))
+          (vcupp-batch-post-load-forms (plist-get effective-args :post-load-forms))
+          (vcupp-batch-post-install-forms
+           (plist-get effective-args :post-install-forms))
           (vcupp-batch-refresh-contents (plist-get effective-args :refresh-contents))
           (vcupp-batch-package-native-compile
            (plist-get effective-args :package-native-compile)))
@@ -137,16 +137,18 @@ Patterns are resolved relative to `vcupp-batch-root'.")
       (delete-file elc))))
 
 (defun vcupp-batch-load-config ()
-  "Load config files and run the optional post-load hook."
+  "Load config files and run optional post-load forms."
   (dolist (file (vcupp-batch-load-files))
     (load-file (vcupp-batch-expand-file file)))
-  (when vcupp-batch-post-load-function
-    (funcall vcupp-batch-post-load-function)))
+  (dolist (entry vcupp-batch-post-load-forms)
+    (if (functionp entry)
+        (funcall entry)
+      (eval entry t))))
 
 (defun vcupp-batch-run-post-install ()
-  "Run `vcupp-batch-post-install-functions' after install completes.
+  "Run `vcupp-batch-post-install-forms' after install completes.
 Each entry may be a function designator or a form to evaluate."
-  (dolist (entry vcupp-batch-post-install-functions)
+  (dolist (entry vcupp-batch-post-install-forms)
     (if (functionp entry)
         (funcall entry)
       (eval entry t))))
