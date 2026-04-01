@@ -9,7 +9,7 @@
          (pkg (cadr (assq lib-sym (package--alist))))
          (dir-or-file (file-name-concat default-directory lib-path)))
     (when pkg
-      (package-delete pkg t))
+      (package-delete pkg t t))
     (cond ((string-match-p "\\.el\\'" dir-or-file)
            (message "Compiling %s..." (expand-file-name dir-or-file))
            (byte-compile-file dir-or-file))
