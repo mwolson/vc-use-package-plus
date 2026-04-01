@@ -11,6 +11,19 @@
     "check": "./scripts/byte-compile.sh --check",
     "check:doc": "./scripts/checkdoc.sh",
     "check:package-lint": "./scripts/package-lint.sh",
-    "test": "emacs -Q --batch -l vcupp.el -l vcupp-batch.el -l vcupp-native-comp.el -l vcupp-install-packages.el -l test/test.el -f ert-run-tests-batch-and-exit"
+    "fix:md": "prettier --write '**/*.md'",
+    "fix:md:file": "prettier --write",
+    "fix:yaml": "prettier --write '**/*.yaml'",
+    "fix:yaml:file": "prettier --write",
+    "hooks:pre-commit": "lefthook run pre-commit",
+    "hooks:pre-commit:all": "lefthook run pre-commit --all-files",
+    "init": "bun run up && bun run init:hooks",
+    "init:hooks": "lefthook install",
+    "test": "emacs -Q --batch -l vcupp.el -l vcupp-batch.el -l vcupp-native-comp.el -l vcupp-install-packages.el -l test/test.el -f ert-run-tests-batch-and-exit",
+    "up": "mise use -g bun@latest && mise install && bun install"
+  },
+  "devDependencies": {
+    "lefthook": "^2.0.13",
+    "prettier": "^3.7.4"
   }
 }

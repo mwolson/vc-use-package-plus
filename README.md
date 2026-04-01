@@ -2,8 +2,8 @@
 
 ![Made for GNU Emacs](assets/badges/made-for-gnu-emacs.svg)
 
-`vcupp` extends Emacs's built-in `use-package :vc` support with a
-few fixes that matter in real configs:
+`vcupp` extends Emacs's built-in `use-package :vc` support with a few fixes that
+matter in real configs:
 
 - Requires Emacs 30.1 or newer.
 - Monorepo installs honor `:main-file`, `:lisp-dir`, and an added
@@ -37,16 +37,16 @@ Load this package before the rest of your `use-package :vc` declarations:
   :demand t)
 ```
 
-`vcupp` adds `:compile-files` for packages that live in a
-monorepo or otherwise need an explicit compile set.
+`vcupp` adds `:compile-files` for packages that live in a monorepo or otherwise
+need an explicit compile set.
 
 ### Preloading package autoloads
 
 `vcupp-preload-package` loads the autoloads for a single package from
-`package-user-dir` without running a full `package-initialize`.  This is useful
+`package-user-dir` without running a full `package-initialize`. This is useful
 in early-init files where you need a few packages available for `:init` or
-`eval-and-compile` blocks without the startup cost of activating every
-installed package:
+`eval-and-compile` blocks without the startup cost of activating every installed
+package:
 
 ```elisp
 ;; In early-init.el -- vcupp itself needs a manual bootstrap since
@@ -71,14 +71,14 @@ installed package:
 ## Bootstrap - Install Packages
 
 `vcupp-install-packages` provides a command-line bootstrap that installs,
-upgrades, and byte-compiles packages.  Two things are needed:
+upgrades, and byte-compiles packages. Two things are needed:
 
 1. Call `vcupp-ensure-packages-on-install` from your `init.el` (or from
    `early-init.el` if you have `use-package` forms there) after loading vcupp.
    During batch installs this sets `use-package-always-ensure` to `t`, which
-   tells every `use-package` form to install its package if missing.  During
-   normal interactive startup it is a no-op (packages are already installed,
-   so there is nothing to do):
+   tells every `use-package` form to install its package if missing. During
+   normal interactive startup it is a no-op (packages are already installed, so
+   there is nothing to do):
 
    ```elisp
    ;; After loading vcupp (see Easy Install Flow above)
@@ -137,18 +137,18 @@ upgrades, and byte-compiles packages.  Two things are needed:
 ## Bootstrap - Native Compilation
 
 `vcupp-native-comp-all` native-compiles your config files after package
-installation.  By default it uses `compile-angel` for broader coverage:
+installation. By default it uses `compile-angel` for broader coverage:
 `compile-angel-on-load-mode` is enabled before loading the config so that
 libraries loaded during init are byte-compiled and native-compiled
-automatically.  It then explicitly native-compiles the configured entry files
-afterward.  In most configs `early-init.el` and `init.el` are enough to
-exercise nearly everything you care about.
+automatically. It then explicitly native-compiles the configured entry files
+afterward. In most configs `early-init.el` and `init.el` are enough to exercise
+nearly everything you care about.
 
 Two things are needed:
 
 1. Call `vcupp-suppress-native-comp-jit` from your early-init to silence async
    native-comp warnings and disable JIT during interactive use (since the batch
-   flow handles compilation ahead of time).  It is a no-op during batch runs:
+   flow handles compilation ahead of time). It is a no-op during batch runs:
 
    ```elisp
    ;; In early-init.el -- after loading vcupp (see Easy Install Flow above)
@@ -156,8 +156,8 @@ Two things are needed:
      (vcupp-suppress-native-comp-jit))
    ```
 
-2. Create a batch script that bootstraps vcupp and calls
-   `vcupp-native-comp-all` with an options plist:
+2. Create a batch script that bootstraps vcupp and calls `vcupp-native-comp-all`
+   with an options plist:
 
    ```elisp
    ;; scripts/native-comp-all.el
@@ -218,16 +218,16 @@ Built-in `use-package :vc` keywords:
 - `:lisp-dir`: Subdirectory containing the package's elisp.
 - `:main-file`: Main entry file for the package.
 - `:vc-backend`: VCS backend symbol.
-- `:rev`: Revision selector. `use-package-vc-prefer-newest` controls the
-  default behavior for `nil`.
+- `:rev`: Revision selector. `use-package-vc-prefer-newest` controls the default
+  behavior for `nil`.
 - `:shell-command`: Shell command run after checkout.
 - `:make`: Build command run after checkout.
 - `:ignored-files`: Files to exclude from packaging.
 
 Added by `vcupp`:
 
-- `:compile-files`: Explicit set of `.el` files to scan and compile. This may
-  be a single file or a list of MELPA-style glob patterns such as `"*.el"` or
+- `:compile-files`: Explicit set of `.el` files to scan and compile. This may be
+  a single file or a list of MELPA-style glob patterns such as `"*.el"` or
   `"extensions/*.el"`. `vcupp` combines these with `:main-file`, respects
   `:lisp-dir`, and limits dependency scanning, byte-compilation, and native
   compilation to the selected files.
@@ -235,35 +235,34 @@ Added by `vcupp`:
 ## Batch Options (vcupp)
 
 Both `vcupp-install-packages` and `vcupp-native-comp-all` accept an optional
-plist as their first argument.  All batch entry points set
-`load-prefer-newer` to `t`, so stale `.elc` files are silently bypassed
-without needing to delete them.
+plist as their first argument. All batch entry points set `load-prefer-newer` to
+`t`, so stale `.elc` files are silently bypassed without needing to delete them.
 
 Shared keys (used by both entry points):
 
-| Key | Default | Description |
-|---|---|---|
-| `:root` | `user-emacs-directory` | Root directory for resolving relative paths. |
-| `:load-files` | `("early-init.el" "init.el")` | Config files to load. |
-| `:setup-forms` | `nil` | Forms evaluated before loading (e.g., setting variables). |
-| `:preload-features` | `nil` | Features to `require` before loading. |
-| `:delete-elc-globs` | `nil` | Glob patterns whose `.elc` matches are deleted before load.  Rarely needed since `load-prefer-newer` handles stale bytecode. |
-| `:post-load-function` | `nil` | Function called after config files finish loading. |
+| Key                   | Default                       | Description                                                                                                                 |
+| --------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `:root`               | `user-emacs-directory`        | Root directory for resolving relative paths.                                                                                |
+| `:load-files`         | `("early-init.el" "init.el")` | Config files to load.                                                                                                       |
+| `:setup-forms`        | `nil`                         | Forms evaluated before loading (e.g., setting variables).                                                                   |
+| `:preload-features`   | `nil`                         | Features to `require` before loading.                                                                                       |
+| `:delete-elc-globs`   | `nil`                         | Glob patterns whose `.elc` matches are deleted before load. Rarely needed since `load-prefer-newer` handles stale bytecode. |
+| `:post-load-function` | `nil`                         | Function called after config files finish loading.                                                                          |
 
 Additional keys for `vcupp-install-packages`:
 
-| Key | Default | Description |
-|---|---|---|
-| `:post-install-functions` | `nil` | Functions called after install/upgrade completes. |
-| `:refresh-contents` | `t` | Whether to run `package-refresh-contents` first. |
-| `:package-native-compile` | `t` | Value assigned to `package-native-compile` during installs. |
+| Key                       | Default | Description                                                 |
+| ------------------------- | ------- | ----------------------------------------------------------- |
+| `:post-install-functions` | `nil`   | Functions called after install/upgrade completes.           |
+| `:refresh-contents`       | `t`     | Whether to run `package-refresh-contents` first.            |
+| `:package-native-compile` | `t`     | Value assigned to `package-native-compile` during installs. |
 
 Additional keys for `vcupp-native-comp-all`:
 
-| Key | Default | Description |
-|---|---|---|
-| `:compile-files` | same as `:load-files` | Files to `native-compile` after loading. |
-| `:use-compile-angel` | `t` | Enable `compile-angel-on-load-mode` before loading the config for broader compilation coverage. |
+| Key                  | Default               | Description                                                                                     |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| `:compile-files`     | same as `:load-files` | Files to `native-compile` after loading.                                                        |
+| `:use-compile-angel` | `t`                   | Enable `compile-angel-on-load-mode` before loading the config for broader compilation coverage. |
 
 ## License
 
