@@ -158,6 +158,8 @@ and `:package-native-compile'."
           (vcupp-install-packages--attach-vc-packages-to-branches)
           (vcupp-install-packages--upgrade-vc-packages)
           (vcupp-install-packages--clean-stale-vc-elc-files)
+          (when vcupp-batch-post-install-functions
+            (package-load-all-descriptors))
           (dolist (fn vcupp-batch-post-install-functions)
             (funcall fn)))
       (setq vcupp-install-packages-active-p nil))))
