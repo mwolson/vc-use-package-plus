@@ -250,6 +250,15 @@ Has no effect when `vcupp-native-comp-active-p' is non-nil."
     (setq native-comp-async-report-warnings-errors 'silent
           native-comp-jit-compilation nil)))
 
+(defun vcupp-ensure-packages-on-install ()
+  "Enable `use-package-always-ensure' during batch package installation.
+Call this from your early-init file after loading vcupp.  During
+normal interactive startup it is a no-op.  During batch runs via
+`vcupp-install-packages', it sets `use-package-always-ensure' to t
+so that every `use-package' form installs its package."
+  (when (bound-and-true-p vcupp-install-packages-active-p)
+    (setq use-package-always-ensure t)))
+
 (defun vcupp-unload-function ()
   "Remove all advice installed by vcupp.
 Called automatically by `unload-feature'."

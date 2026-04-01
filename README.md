@@ -92,13 +92,22 @@ Minimal example using the default `~/.emacs.d` layout:
 (require 'vcupp-install-packages)
 
 (setq vcupp-batch-args
-      '(:load-files ("early-init.el" "init.el")
-        :setup-forms ((setq use-package-always-ensure t))))
+      '(:load-files ("early-init.el" "init.el")))
 
 (vcupp-install-packages vcupp-batch-args)
 ```
 
 Run it with `emacs -Q --batch -l scripts/install-packages.el`.
+
+The install script does not need to set `use-package-always-ensure` in
+`:setup-forms`.  Instead, call `vcupp-ensure-packages-on-install` from your
+early-init (after loading vcupp) and it handles this automatically during
+batch runs:
+
+```elisp
+;; In early-init.el
+(vcupp-ensure-packages-on-install)
+```
 
 A real-world example for a config whose files live under `init/`:
 
@@ -120,8 +129,7 @@ A real-world example for a config whose files live under `init/`:
       `(:root ,(expand-file-name
                 (concat (file-name-directory load-file-name) "../"))
         :load-files ("init/early-shared-init.el" "init/shared-init.el")
-        :setup-forms ((setq my-install-packages t)
-                      (setq my-server-start-p nil))
+        :setup-forms ((setq my-server-start-p nil))
         :post-load-function my-run-deferred-tasks
         :post-install-functions (kind-icon-reset-cache)))
 
@@ -185,6 +193,7 @@ so the two flows do not conflict:
 
 (eval-and-compile
   (vcupp-suppress-native-comp-jit))
+(vcupp-ensure-packages-on-install)
 ```
 
 ## Keywords (use-package)

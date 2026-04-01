@@ -13,6 +13,11 @@
 
 (require 'vcupp-batch)
 
+(defvar vcupp-install-packages-active-p nil
+  "Non-nil while `vcupp-install-packages' is running.
+User configs can check this with `bound-and-true-p' to enable
+`use-package-always-ensure' only during batch installation.")
+
 (defvar vcupp-install-packages--desired-vc-specs nil
   "Normalized VC specs declared by `use-package' during this run.")
 
@@ -126,14 +131,18 @@ and `:package-native-compile'."
                 #'vcupp-install-packages--record-install-spec-advice)
     (advice-add 'project-remember-projects-under :override #'ignore)
     (advice-add 'yes-or-no-p :override #'always)
-    (vcupp-batch-load-config)
-    (vcupp-install-packages--reinstall-changed-vc-urls)
-    (vcupp-install-packages--attach-vc-packages-to-branches)
-    (message "Upgrading VC packages to latest commits...")
-    (package-vc-upgrade-all)
-    (vcupp-install-packages--clean-stale-vc-elc-files)
-    (dolist (fn vcupp-batch-post-install-functions)
-      (funcall fn))))
+    (setq vcupp-install-packages-active-p t)
+    (unwind-protect
+        (progn
+          (vcupp-batch-load-config)
+          (vcupp-install-packages--reinstall-changed-vc-urls)
+          (vcupp-install-packages--attach-vc-packages-to-branches)
+          (message "Upgrading VC packages to latest commits...")
+          (package-vc-upgrade-all)
+          (vcupp-install-packages--clean-stale-vc-elc-files)
+          (dolist (fn vcupp-batch-post-install-functions)
+            (funcall fn)))
+      (setq vcupp-install-packages-active-p nil))))
 
 (provide 'vcupp-install-packages)
 ;;; vcupp-install-packages.el ends here

@@ -435,6 +435,32 @@
              '(:use-compile-angel t)))))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp-install-packages.el -- active-p lifecycle
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-install-packages-active-p/initially-nil ()
+  "vcupp-install-packages-active-p starts as nil."
+  (should (null vcupp-install-packages-active-p)))
+
+;; ---------------------------------------------------------------------------
+;; vcupp.el -- vcupp-ensure-packages-on-install
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-ensure-packages-on-install/sets-ensure-when-active ()
+  "Sets use-package-always-ensure when install sentinel is active."
+  (let ((vcupp-install-packages-active-p t)
+        (use-package-always-ensure nil))
+    (vcupp-ensure-packages-on-install)
+    (should (eq use-package-always-ensure t))))
+
+(ert-deftest vcupp-ensure-packages-on-install/noop-when-inactive ()
+  "No-op when vcupp-install-packages-active-p is nil."
+  (let ((vcupp-install-packages-active-p nil)
+        (use-package-always-ensure nil))
+    (vcupp-ensure-packages-on-install)
+    (should (null use-package-always-ensure))))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- VC spec recording
 ;; ---------------------------------------------------------------------------
 
