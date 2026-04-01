@@ -19,12 +19,12 @@ repositories. This is a powerful alternative to MELPA:
 
 vcupp fixes several rough edges in the built-in `:vc` support:
 
-- Monorepo installs honor `:main-file`, `:lisp-dir`, and an added
+- Installs from larger repos honor `:main-file`, `:lisp-dir`, and an added
   `:compile-files` keyword (supporting glob patterns like `"extensions/*.el"`),
   so dependency scanning, byte-compilation, and native compilation are limited
   to the files you actually use.
 - `package-vc` only scans selected files for dependencies instead of walking an
-  entire monorepo checkout.
+  entire checkout.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
 - Pre-release version headers like `0.3.3-DEV` produce a usable package version
   instead of breaking installation.
@@ -68,8 +68,9 @@ Load this package before the rest of your `use-package :vc` declarations:
   :demand t)
 ```
 
-`vcupp` adds `:compile-files` for packages that live in a monorepo or otherwise
-need an explicit compile set.
+`vcupp` adds `:compile-files` for packages that live in a larger repo or
+otherwise need an explicit compile set, such as excluding tests or other
+dev-only Elisp files.
 
 ### Preloading package autoloads
 
@@ -125,6 +126,8 @@ upgrades, and byte-compiles packages. Two things are needed:
    ```elisp
    ;; scripts/install-packages.el
    (require 'package)
+   ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
+   ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
    (package-initialize)
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
@@ -145,7 +148,8 @@ upgrades, and byte-compiles packages. Two things are needed:
    ```elisp
    ;; scripts/install-packages.el
    (require 'package)
-   (setq package-user-dir (locate-user-emacs-file "elpa"))
+   ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
+   ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
    (package-initialize)
 
    (require 'use-package)
@@ -196,6 +200,8 @@ Two things are needed:
    ```elisp
    ;; scripts/native-comp-all.el
    (require 'package)
+   ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
+   ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
    (package-initialize)
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)

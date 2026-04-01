@@ -13,6 +13,8 @@
 
 (require 'vcupp-batch)
 
+(defvar package-vc-selected-packages)
+
 (defvar vcupp-install-packages-active-p nil
   "Non-nil while `vcupp-install-packages' is running.
 User configs can check this with `bound-and-true-p' to enable
@@ -98,6 +100,19 @@ KEYWORD, ARG, REST, and STATE are forwarded from `use-package-handler/:vc'."
                     (process-file "git" nil nil nil
                                   "checkout" "-f" branch)))))))))))
 
+(defun vcupp-install-packages--sync-vc-specs ()
+  "Copy recorded VC specs into `package-vc-selected-packages'.
+This ensures that `package-vc--desc->spec' can find the spec
+during `package-vc-upgrade', which calls `package-vc--unpack-1'
+directly and therefore bypasses `vcupp--save-spec-early'."
+  (dolist (entry vcupp-install-packages--desired-vc-specs)
+    (let* ((name (car entry))
+           (arg (cdr entry))
+           (spec (nth 1 arg)))
+      (when spec
+        (setf (alist-get name package-vc-selected-packages nil nil #'string=)
+              spec)))))
+
 (defun vcupp-install-packages--wait-for-upgrade (result)
   "Block until async package upgrade RESULT is complete."
   (when (processp result)
@@ -154,6 +169,7 @@ and `:package-native-compile'."
     (unwind-protect
         (progn
           (vcupp-batch-load-config)
+          (vcupp-install-packages--sync-vc-specs)
           (vcupp-install-packages--reinstall-changed-vc-urls)
           (vcupp-install-packages--attach-vc-packages-to-branches)
           (vcupp-install-packages--upgrade-vc-packages)

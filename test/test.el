@@ -29,6 +29,12 @@
 (defvar my-test-project-dir
   (expand-file-name ".." my-test-test-dir))
 
+(defun my-test-any-regexp-matches-p (regexps path)
+  "Return non-nil when any regexp in REGEXPS matches PATH."
+  (cl-some (lambda (regexp)
+             (string-match-p regexp path))
+           regexps))
+
 (defun my-test--with-tmp-dir (fn)
   "Call FN with a temporary directory, cleaned up afterward."
   (let ((tmp (make-temp-file "vcupp-test-" t)))
@@ -149,6 +155,113 @@
   (should (vcupp--generated-el-file-p "bar-pkg.el"))
   (should-not (vcupp--generated-el-file-p "foo.el"))
   (should-not (vcupp--generated-el-file-p "foo-utils.el")))
+
+(ert-deftest vcupp-package-compile/uses-elpaignore-for-dev-files ()
+  "Package compilation ignores vcupp's dev-only Elisp files."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'vcupp
+                    :version '(0 1 0)
+                    :summary ""
+                    :dir my-test-project-dir))
+         (script-file (expand-file-name "scripts/byte-compile-local.el"
+                                        my-test-project-dir))
+         (test-file (expand-file-name "test/test.el" my-test-project-dir))
+         (main-file (expand-file-name "vcupp.el" my-test-project-dir))
+         captured-ignores)
+    (cl-letf (((symbol-function 'byte-recompile-directory)
+               (lambda (_dir _depth _force)
+                 (setq captured-ignores byte-compile-ignore-files))))
+      (package--compile pkg-desc))
+    (should captured-ignores)
+    (should (my-test-any-regexp-matches-p captured-ignores script-file))
+    (should (my-test-any-regexp-matches-p captured-ignores test-file))
+    (should-not (my-test-any-regexp-matches-p captured-ignores main-file))))
+
+;; ---------------------------------------------------------------------------
+;; vcupp.el -- default test ignores
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-default-test-ignores/finds-test-dir ()
+  "Returns a pattern when test/ exists."
+  (my-test-with-tmp-dir tmp
+    (make-directory (expand-file-name "test" tmp))
+    (let ((ignores (vcupp--default-test-ignores tmp)))
+      (should (= (length ignores) 1))
+      (should (string-match-p
+               (car ignores)
+               (expand-file-name "test/foo.el" tmp)))
+      (should-not (string-match-p
+                   (car ignores)
+                   (expand-file-name "foo.el" tmp))))))
+
+(ert-deftest vcupp-default-test-ignores/finds-tests-dir ()
+  "Returns a pattern when tests/ exists."
+  (my-test-with-tmp-dir tmp
+    (make-directory (expand-file-name "tests" tmp))
+    (let ((ignores (vcupp--default-test-ignores tmp)))
+      (should (= (length ignores) 1))
+      (should (string-match-p
+               (car ignores)
+               (expand-file-name "tests/bar.el" tmp))))))
+
+(ert-deftest vcupp-default-test-ignores/no-test-dir ()
+  "Returns nil when no test directories exist."
+  (my-test-with-tmp-dir tmp
+    (should (null (vcupp--default-test-ignores tmp)))))
+
+(ert-deftest vcupp-default-test-ignores/nil-dir ()
+  "Returns nil when given nil."
+  (should (null (vcupp--default-test-ignores nil))))
+
+;; ---------------------------------------------------------------------------
+;; vcupp.el -- VC package byte-compile with test exclusions
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-byte-compile-targets/vc-pkg-excludes-test-dir ()
+  "VC packages without compile targets exclude test directories."
+  (my-test-with-tmp-dir tmp
+    (let ((test-dir (expand-file-name "test" tmp)))
+      (make-directory test-dir)
+      (my-test-write-el-file tmp "foo.el"
+                             (concat my-test-el-header "(provide 'foo)\n"))
+      (my-test-write-el-file test-dir "foo-test.el"
+                             (concat my-test-el-header "(require 'foo)\n"))
+      (let* ((pkg-desc (package-desc-create
+                        :name 'foo
+                        :version '(1 0)
+                        :kind 'vc
+                        :dir tmp))
+             (package-vc-selected-packages nil)
+             captured-ignores)
+        (cl-letf (((symbol-function 'byte-recompile-directory)
+                   (lambda (_dir _depth _force)
+                     (setq captured-ignores byte-compile-ignore-files))))
+          (package--compile pkg-desc))
+        (should captured-ignores)
+        (should (my-test-any-regexp-matches-p
+                 captured-ignores
+                 (expand-file-name "test/foo-test.el" tmp)))
+        (should-not (my-test-any-regexp-matches-p
+                     captured-ignores
+                     (expand-file-name "foo.el" tmp)))))))
+
+(ert-deftest vcupp-byte-compile-targets/non-vc-delegates ()
+  "Non-VC packages without compile targets delegate to orig-fn."
+  (my-test-with-tmp-dir tmp
+    (my-test-write-el-file tmp "foo.el"
+                           (concat my-test-el-header "(provide 'foo)\n"))
+    (let* ((pkg-desc (package-desc-create
+                      :name 'foo
+                      :version '(1 0)
+                      :summary ""
+                      :dir tmp))
+           orig-called)
+      (cl-letf (((symbol-function 'byte-recompile-directory)
+                 (lambda (_dir _depth _force) nil)))
+        (vcupp--byte-compile-targets
+         (lambda (_pd) (setq orig-called t))
+         pkg-desc))
+      (should orig-called))))
 
 ;; ---------------------------------------------------------------------------
 ;; vcupp.el -- pre-release version handling
@@ -535,6 +648,40 @@
      'my-pkg nil '(my-pkg (:url "https://example.com") nil) nil nil)
     (should (equal (alist-get 'my-pkg vcupp-install-packages--desired-vc-specs)
                    '(my-pkg (:url "https://example.com") nil)))))
+
+;; ---------------------------------------------------------------------------
+;; vcupp-install-packages.el -- VC spec syncing
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-install-packages-sync-vc-specs/populates-selected-packages ()
+  "Syncing copies recorded specs into `package-vc-selected-packages'."
+  (let ((vcupp-install-packages--desired-vc-specs
+         '((my-pkg . (my-pkg (:url "https://example.com"
+                              :compile-files ("my-pkg.el"))
+                             nil))))
+        (package-vc-selected-packages nil))
+    (vcupp-install-packages--sync-vc-specs)
+    (should (equal (alist-get 'my-pkg package-vc-selected-packages
+                              nil nil #'string=)
+                   '(:url "https://example.com"
+                     :compile-files ("my-pkg.el"))))))
+
+(ert-deftest vcupp-install-packages-sync-vc-specs/multiple-packages ()
+  "Syncing handles multiple recorded specs."
+  (let ((vcupp-install-packages--desired-vc-specs
+         '((pkg-a . (pkg-a (:url "https://a.com") nil))
+           (pkg-b . (pkg-b (:url "https://b.com"
+                             :compile-files ("b.el"))
+                           nil))))
+        (package-vc-selected-packages nil))
+    (vcupp-install-packages--sync-vc-specs)
+    (should (equal (alist-get 'pkg-a package-vc-selected-packages
+                              nil nil #'string=)
+                   '(:url "https://a.com")))
+    (should (equal (alist-get 'pkg-b package-vc-selected-packages
+                              nil nil #'string=)
+                   '(:url "https://b.com"
+                     :compile-files ("b.el"))))))
 
 ;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- stale .elc cleanup

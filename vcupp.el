@@ -10,7 +10,7 @@
 ;;; Commentary:
 
 ;; This package extends Emacs's built-in `package-vc' and `use-package :vc'
-;; behavior for monorepos and explicit compile targets.
+;; behavior for larger repositories and explicit compile targets.
 
 ;;; Code:
 
@@ -161,34 +161,80 @@ version number in their `-pkg.el' descriptor."
                               "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
           (error nil)))))
 
+(defun vcupp--default-test-ignores (pkg-dir)
+  "Return regexp patterns to exclude test directories under PKG-DIR."
+  (when pkg-dir
+    (let (patterns)
+      (dolist (name '("test" "tests"))
+        (let ((subdir (expand-file-name name pkg-dir)))
+          (when (file-directory-p subdir)
+            (push (concat "\\`" (regexp-quote (file-name-as-directory subdir)))
+                  patterns))))
+      patterns)))
+
+(defun vcupp--vc-pkg-ignore-patterns (pkg-desc)
+  "Return combined ignore patterns for VC package PKG-DESC.
+Merges `.elpaignore' patterns with default test directory exclusions."
+  (append (when (fboundp 'package--parse-elpaignore)
+            (package--parse-elpaignore pkg-desc))
+          (vcupp--default-test-ignores (package-desc-dir pkg-desc))))
+
 (defun vcupp--byte-compile-targets (orig-fn pkg-desc)
   "Byte-compile only selected files for PKG-DESC.
-ORIG-FN is the original `package--compile' function."
+ORIG-FN is the original `package--compile' function.  For VC
+packages without explicit compile targets, default test directory
+exclusions are applied alongside any `.elpaignore' patterns."
   (let ((target (vcupp--compile-targets pkg-desc)))
-    (if (not target)
-        (funcall orig-fn pkg-desc)
+    (cond
+     (target
       (let ((warning-minimum-level :error))
         (pcase (plist-get target :type)
           ('files
            (dolist (path (plist-get target :paths))
              (byte-compile-file path)))
           ('dir
-           (byte-recompile-directory (plist-get target :path) 0 'force)))))))
+           (byte-recompile-directory (plist-get target :path) 0 'force)))))
+     ((package-vc-p pkg-desc)
+      (let ((warning-minimum-level :error)
+            (byte-compile-ignore-files
+             (append (vcupp--vc-pkg-ignore-patterns pkg-desc)
+                     byte-compile-ignore-files))
+            (load-path load-path))
+        (byte-recompile-directory (package-desc-dir pkg-desc) 0 t)))
+     (t
+      (funcall orig-fn pkg-desc)))))
 
 (defun vcupp--native-compile-targets (orig-fn pkg-desc)
   "Native-compile only selected files for PKG-DESC.
-ORIG-FN is the original `package--native-compile-async' function."
+ORIG-FN is the original `package--native-compile-async' function.
+For VC packages without explicit compile targets, default test
+directory exclusions are applied alongside any `.elpaignore' patterns."
   (when (native-comp-available-p)
     (let ((target (vcupp--compile-targets pkg-desc)))
-      (if (not target)
-          (funcall orig-fn pkg-desc)
+      (cond
+       (target
         (let ((warning-minimum-level :error))
           (pcase (plist-get target :type)
             ('files
              (native-compile-async (plist-get target :paths)))
             ('dir
              (native-compile-async
-              (directory-files-recursively (plist-get target :path) "\\.el\\'")))))))))
+              (directory-files-recursively (plist-get target :path) "\\.el\\'"))))))
+       ((package-vc-p pkg-desc)
+        (let* ((warning-minimum-level :error)
+               (pkg-dir (package-desc-dir pkg-desc))
+               (ignores (vcupp--vc-pkg-ignore-patterns pkg-desc))
+               (files (directory-files-recursively pkg-dir "\\.el\\'")))
+          (when ignores
+            (setq files (seq-remove
+                         (lambda (f)
+                           (cl-some (lambda (re) (string-match-p re f))
+                                    ignores))
+                         files)))
+          (when files
+            (native-compile-async files))))
+       (t
+        (funcall orig-fn pkg-desc))))))
 
 (with-eval-after-load 'package-vc
   (advice-add 'package-vc--unpack :before #'vcupp--save-spec-early)
