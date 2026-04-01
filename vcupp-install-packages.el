@@ -119,17 +119,28 @@ directly and therefore bypasses `vcupp--save-spec-early'."
     (while (process-live-p result)
       (accept-process-output result 1))))
 
+(defun vcupp-install-packages--has-upstream-changes (pkg-dir)
+  "Return non-nil if the git repo at PKG-DIR has unfetched upstream commits."
+  (let ((default-directory pkg-dir))
+    (and (zerop (process-file "git" nil nil nil "fetch" "--quiet"))
+         (not (zerop (process-file "git" nil nil nil
+                                   "diff" "--quiet" "HEAD" "@{u}"))))))
+
 (defun vcupp-install-packages--upgrade-vc-packages ()
-  "Pull latest commits for all VC packages synchronously.
-Waits for each `package-vc-upgrade' process before continuing so
-packages are fully upgraded and reactivated before the batch
-script moves on."
+  "Pull latest commits for VC packages that have upstream changes.
+Skips packages whose HEAD already matches the upstream tracking
+branch, avoiding unnecessary recompilation."
   (message "Upgrading VC packages to latest commits...")
   (dolist (package package-alist)
     (dolist (pkg-desc (cdr package))
       (when (package-vc-p pkg-desc)
-        (vcupp-install-packages--wait-for-upgrade
-         (package-vc-upgrade pkg-desc)))))
+        (let ((pkg-dir (package-desc-dir pkg-desc)))
+          (when (and pkg-dir
+                     (file-directory-p (expand-file-name ".git" pkg-dir))
+                     (vcupp-install-packages--has-upstream-changes pkg-dir))
+            (message "  %s: upgrading..." (package-desc-name pkg-desc))
+            (vcupp-install-packages--wait-for-upgrade
+             (package-vc-upgrade pkg-desc)))))))
   (message "Done upgrading packages."))
 
 (defun vcupp-install-packages--clean-stale-vc-elc-files ()
