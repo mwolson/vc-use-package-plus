@@ -59,6 +59,11 @@ without paying the cost of a full `package-initialize'."
                               pkg-dir)))
     (load autoload-name nil t)))
 
+(defun vcupp-activate-package (sym)
+  "Activate installed package SYM when it is present in `package-alist'."
+  (when-let* ((pkg (cadr (assq sym package-alist))))
+    (package-activate-1 pkg)))
+
 (defun vcupp--generated-el-file-p (path)
   "Return non-nil if PATH names a generated `-autoloads' or `-pkg' file."
   (string-match-p "-\\(?:autoloads\\|pkg\\)\\.el\\'" path))

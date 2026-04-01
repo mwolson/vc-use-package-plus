@@ -436,6 +436,35 @@
              '(:use-compile-angel t)))))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp.el -- package activation helper
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-activate-package/activates-installed-package ()
+  "Activates an installed package when present in `package-alist'."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'foo
+                    :version '(1 0)
+                    :kind 'vc
+                    :dir "/tmp/foo"))
+         (package-alist (list (list 'foo pkg-desc)))
+         (activated nil))
+    (cl-letf (((symbol-function 'package-activate-1)
+               (lambda (pkg &rest _args)
+                 (setq activated pkg))))
+      (vcupp-activate-package 'foo))
+    (should (eq activated pkg-desc))))
+
+(ert-deftest vcupp-activate-package/noop-when-missing ()
+  "Does nothing when the package is not present in `package-alist'."
+  (let ((package-alist nil)
+        (activated nil))
+    (cl-letf (((symbol-function 'package-activate-1)
+               (lambda (&rest _args)
+                 (setq activated t))))
+      (vcupp-activate-package 'foo))
+    (should-not activated)))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- active-p lifecycle
 ;; ---------------------------------------------------------------------------
 
