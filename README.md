@@ -85,8 +85,9 @@ upgrades, and byte-compiles packages.  Two things are needed:
    (vcupp-ensure-packages-on-install)
    ```
 
-2. Create a batch script that bootstraps vcupp, sets `vcupp-batch-args`,
-   and calls `vcupp-install-packages`.
+2. Create a batch script that bootstraps vcupp and calls
+   `vcupp-install-packages` with an options plist (see
+   [Batch Options](#batch-options-vcupp) for all supported keys).
 
    Minimal example using the default `~/.emacs.d` layout:
 
@@ -102,10 +103,8 @@ upgrades, and byte-compiles packages.  Two things are needed:
      :demand t)
    (require 'vcupp-install-packages)
 
-   (setq vcupp-batch-args
-         '(:load-files ("early-init.el" "init.el")))
-
-   (vcupp-install-packages vcupp-batch-args)
+   (vcupp-install-packages
+    '(:load-files ("early-init.el" "init.el")))
    ```
 
    Run it with `emacs -Q --batch -l scripts/install-packages.el`.
@@ -126,15 +125,13 @@ upgrades, and byte-compiles packages.  Two things are needed:
      :demand t)
    (require 'vcupp-install-packages)
 
-   (setq vcupp-batch-args
-         `(:root ,(expand-file-name
-                   (concat (file-name-directory load-file-name) "../"))
-           :load-files ("init/early-shared-init.el" "init/shared-init.el")
-           :setup-forms ((setq my-server-start-p nil))
-           :post-load-function my-run-deferred-tasks
-           :post-install-functions (kind-icon-reset-cache)))
-
-   (vcupp-install-packages vcupp-batch-args)
+   (vcupp-install-packages
+    `(:root ,(expand-file-name
+              (concat (file-name-directory load-file-name) "../"))
+      :load-files ("init/early-shared-init.el" "init/shared-init.el")
+      :setup-forms ((setq my-server-start-p nil))
+      :post-load-function my-run-deferred-tasks
+      :post-install-functions (kind-icon-reset-cache)))
    ```
 
 ## Bootstrap - Native Compilation
@@ -159,8 +156,8 @@ Two things are needed:
      (vcupp-suppress-native-comp-jit))
    ```
 
-2. Create a batch script that bootstraps vcupp, sets `vcupp-batch-args`,
-   and calls `vcupp-native-comp-all`:
+2. Create a batch script that bootstraps vcupp and calls
+   `vcupp-native-comp-all` with an options plist:
 
    ```elisp
    ;; scripts/native-comp-all.el
@@ -174,10 +171,8 @@ Two things are needed:
      :demand t)
    (require 'vcupp-native-comp)
 
-   (setq vcupp-batch-args
-         '(:load-files ("early-init.el" "init.el")))
-
-   (vcupp-native-comp-all vcupp-batch-args)
+   (vcupp-native-comp-all
+    '(:load-files ("early-init.el" "init.el")))
    ```
 
    Run it with `emacs -Q --batch -l scripts/native-comp-all.el`.
@@ -186,10 +181,10 @@ To disable `compile-angel` and compile an explicit file list instead, pass
 `:use-compile-angel nil` and a separate `:compile-files`:
 
 ```elisp
-(setq vcupp-batch-args
-      '(:load-files ("early-init.el" "init.el")
-        :compile-files ("settings.el" "early-init.el" "init.el")
-        :use-compile-angel nil))
+(vcupp-native-comp-all
+ '(:load-files ("early-init.el" "init.el")
+   :compile-files ("settings.el" "early-init.el" "init.el")
+   :use-compile-angel nil))
 ```
 
 ### Putting it all together in early-init.el
@@ -240,7 +235,7 @@ Added by `vcupp`:
 ## Batch Options (vcupp)
 
 Both `vcupp-install-packages` and `vcupp-native-comp-all` accept an optional
-plist (typically via `vcupp-batch-args`).  All batch entry points set
+plist as their first argument.  All batch entry points set
 `load-prefer-newer` to `t`, so stale `.elc` files are silently bypassed
 without needing to delete them.
 
