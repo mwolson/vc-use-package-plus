@@ -23,6 +23,7 @@
 (require 'seq)
 (require 'use-package)
 
+(defvar native-comp-jit-compilation)
 (defvar package-vc-selected-packages)
 (defvar warning-minimum-level)
 
