@@ -98,6 +98,30 @@ KEYWORD, ARG, REST, and STATE are forwarded from `use-package-handler/:vc'."
                     (process-file "git" nil nil nil
                                   "checkout" "-f" branch)))))))))))
 
+(defun vcupp-install-packages--vc-do-command-sync
+    (orig-fn buffer okstatus command file-or-list &rest flags)
+  "Advice to force `vc-do-command' to run synchronously.
+Replaces async OKSTATUS with 1 so `vc-pull' blocks until
+complete, ensuring packages are fully upgraded before the batch
+script continues.  ORIG-FN, BUFFER, COMMAND, FILE-OR-LIST, and
+FLAGS are passed through."
+  (apply orig-fn buffer
+         (if (eq okstatus 'async) 1 okstatus)
+         command file-or-list flags))
+
+(defun vcupp-install-packages--upgrade-vc-packages ()
+  "Pull latest commits for all VC packages synchronously.
+Advises `vc-do-command' to run synchronously, then delegates to
+`package-vc-upgrade-all' which handles fetching, merging, and
+reactivation via the normal `package-vc-upgrade' path."
+  (message "Upgrading VC packages to latest commits...")
+  (advice-add 'vc-do-command :around
+              #'vcupp-install-packages--vc-do-command-sync)
+  (unwind-protect
+      (package-vc-upgrade-all)
+    (advice-remove 'vc-do-command
+                   #'vcupp-install-packages--vc-do-command-sync)))
+
 (defun vcupp-install-packages--clean-stale-vc-elc-files ()
   "Delete `.elc' files from VC packages where the `.el' is newer."
   (message "Cleaning stale .elc files from VC packages...")
@@ -137,8 +161,7 @@ and `:package-native-compile'."
           (vcupp-batch-load-config)
           (vcupp-install-packages--reinstall-changed-vc-urls)
           (vcupp-install-packages--attach-vc-packages-to-branches)
-          (message "Upgrading VC packages to latest commits...")
-          (package-vc-upgrade-all)
+          (vcupp-install-packages--upgrade-vc-packages)
           (vcupp-install-packages--clean-stale-vc-elc-files)
           (dolist (fn vcupp-batch-post-install-functions)
             (funcall fn)))
