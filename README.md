@@ -73,14 +73,15 @@ installed package:
 `vcupp-install-packages` provides a command-line bootstrap that installs,
 upgrades, and byte-compiles packages.  Two things are needed:
 
-1. Call `vcupp-ensure-packages-on-install` from your early-init after loading
-   vcupp.  During batch installs this sets `use-package-always-ensure` to `t`,
-   which tells every `use-package` form to install its package if missing.
-   During normal interactive startup it is a no-op (packages are already
-   installed, so there is nothing to do):
+1. Call `vcupp-ensure-packages-on-install` from your `init.el` (or from
+   `early-init.el` if you have `use-package` forms there) after loading vcupp.
+   During batch installs this sets `use-package-always-ensure` to `t`, which
+   tells every `use-package` form to install its package if missing.  During
+   normal interactive startup it is a no-op (packages are already installed,
+   so there is nothing to do):
 
    ```elisp
-   ;; In early-init.el -- after loading vcupp (see Easy Install Flow above)
+   ;; After loading vcupp (see Easy Install Flow above)
    (vcupp-ensure-packages-on-install)
    ```
 
