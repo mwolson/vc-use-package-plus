@@ -40,7 +40,7 @@ Load this package before the rest of your `use-package :vc` declarations:
 `vcupp` adds `:compile-files` for packages that live in a
 monorepo or otherwise need an explicit compile set.
 
-## Bootstrap -- Install Packages
+## Bootstrap - Install Packages
 
 `vcupp-install-packages` provides a command-line bootstrap that installs,
 upgrades, and byte-compiles packages before your first real Emacs session.
@@ -100,7 +100,7 @@ A real-world example for a config whose files live under `init/`:
 (vcupp-install-packages vcupp-batch-args)
 ```
 
-## Bootstrap -- Native Compilation
+## Bootstrap - Native Compilation
 
 `vcupp-native-comp-all` native-compiles your config files after package
 installation.  By default it uses `compile-angel` for broader coverage:
