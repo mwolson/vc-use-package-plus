@@ -6,9 +6,30 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
+    env:
+      MISE_YES: "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Cache mise installs
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/mise/installs
+          key: mise-${{ runner.arch }}-bun
+      - name: Install mise and tools
+        env:
+          GITHUB_TOKEN: ""
+        run: |
+          curl https://mise.run | sh
+          mise use -g bun@latest
+          mise install
+          echo "$HOME/.local/share/mise/shims" >> "$GITHUB_PATH"
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.arch }}-
       - name: Install Emacs 30
         uses: purcell/setup-emacs@master
         with:
@@ -19,10 +40,12 @@ jobs:
           emacs --version
           git clone https://github.com/riscy/melpazoid.git ~/melpazoid
           pip install ~/melpazoid
+      - name: Install project dependencies
+        run: bun install
       - name: Check
-        run: npm run check
+        run: bun run check
       - name: Test
-        run: npm run test
+        run: bun run test:all
       - name: Run Melpazoid
         run: |
           RECIPE="$(tr '\n' ' ' < vcupp.recipe)"
