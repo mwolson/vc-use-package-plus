@@ -189,9 +189,10 @@ upgrades, and byte-compiles packages. Two things are needed:
 ## Bootstrap - Native Compilation
 
 `vcupp-native-comp-all` native-compiles your config files after package
-installation. By default it uses `compile-angel` for broader coverage:
-`compile-angel-on-load-mode` is enabled before loading the config so that
-libraries loaded during init are byte-compiled and native-compiled
+installation. By default it uses
+[`compile-angel`](https://github.com/jamescherti/compile-angel.el) for broader
+coverage: `compile-angel-on-load-mode` is enabled before loading the config so
+that libraries loaded during init are byte-compiled and native-compiled
 automatically. It then explicitly native-compiles the configured entry files
 afterward. In most configs `early-init.el` and `init.el` are enough to exercise
 nearly everything you care about.
