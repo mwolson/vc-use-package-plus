@@ -6,6 +6,8 @@
 batch tooling for package installation and native compilation. Requires Emacs
 30.1 or newer.
 
+WARNING: This project is still in alpha phase and contracts may change.
+
 ## Why use this library
 
 Emacs 30 added `use-package :vc`, which installs packages directly from Git
@@ -28,6 +30,7 @@ vcupp fixes several rough edges in the built-in `:vc` support:
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
 - Pre-release version headers like `0.3.3-DEV` produce a usable package version
   instead of breaking installation.
+- Changing the `use-package` form to a forked repo is expected to work.
 
 vcupp also provides batch helpers (`vcupp-install-packages` and
 `vcupp-native-comp-all`) that let you set up a bootstrap process to install,
@@ -38,7 +41,11 @@ so you choose when to update and every startup is consistently fast.
 ## Why not to use it
 
 - All your dependencies are on MELPA, MELPA is working well for you, and you
-  don't need packages from Git.
+  don't need packages from Git, and/or `package-vc` is already working well
+  enough.
+- The slowdown on upgrading packages compared to MELPA is too much (negligible
+  if you're using the bootstrap approach, but still can be upwards of 10+
+  seconds).
 - You prefer not to manually manage transitive dependencies of your packages.
   (If this is only an issue for some packages, you can mix and match: use MELPA
   for packages with deep dependency trees and `:vc` for the rest.)
