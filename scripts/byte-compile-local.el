@@ -1,5 +1,6 @@
 ;; byte-compile-local.el --- -*- lexical-binding: t -*-
 
+(setq text-quoting-style 'straight) ; keep quotes ASCII for grep filters
 (require 'package)
 (package-load-all-descriptors)
 (add-to-list 'load-path default-directory)
