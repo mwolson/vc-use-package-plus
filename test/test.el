@@ -890,40 +890,139 @@
   (should (memq :compile-files use-package-vc-valid-keywords)))
 
 ;; ---------------------------------------------------------------------------
-;; Live tests -- require a real ~/.emacs.d/elpa with installed packages
+;; Live tests -- use fixture packages in a temporary elpa directory
 ;; ---------------------------------------------------------------------------
 
-(ert-deftest vcupp-live/no-self-deps ()
-  :tags '(:live)
-  "No installed package depends on itself."
-  (skip-unless my-test-run-live-tests)
-  (package-initialize)
-  (let ((self-deps (vcupp-find-self-deps)))
-    (should-not self-deps)))
+(defvar my-test-fixtures-dir
+  (expand-file-name "fixtures" my-test-test-dir))
 
-(ert-deftest vcupp-live/no-duplicate-packages ()
+(defun my-test-install-fixture (fixture-name elpa-dir deps &optional kind)
+  "Copy fixture FIXTURE-NAME into ELPA-DIR and generate package metadata.
+DEPS is the dependency list for the -pkg.el file, e.g.
+\\='((emacs \"29.1\")).  KIND defaults to vc."
+  (let* ((src (expand-file-name fixture-name my-test-fixtures-dir))
+         (dst (expand-file-name fixture-name elpa-dir))
+         (kind (or kind 'vc)))
+    (copy-directory src dst nil nil t)
+    (with-temp-file (expand-file-name
+                     (concat fixture-name "-pkg.el") dst)
+      (insert (format "%s%s\n"
+                      ";;; Generated -*- no-byte-compile: t -*-\n"
+                      (pp-to-string
+                       `(define-package ,fixture-name "1.0" "Test fixture"
+                          ',deps :kind ,kind)))))
+    (with-temp-file (expand-file-name
+                     (concat fixture-name "-autoloads.el") dst)
+      (insert (format ";;; %s-autoloads.el --- autoloads -*- lexical-binding: t -*-\n(provide '%s-autoloads)\n;;; %s-autoloads.el ends here\n"
+                      fixture-name fixture-name fixture-name)))
+    dst))
+
+(defun my-test-install-versioned-fixture (name version elpa-dir deps)
+  "Create a minimal versioned ELPA package NAME-VERSION in ELPA-DIR.
+DEPS is the dependency list."
+  (let ((dir (expand-file-name (format "%s-%s" name version) elpa-dir)))
+    (make-directory dir t)
+    (with-temp-file (expand-file-name (concat name "-pkg.el") dir)
+      (insert (format "%s%s\n"
+                      ";;; Generated -*- no-byte-compile: t -*-\n"
+                      (pp-to-string
+                       `(define-package ,name ,version "Test fixture"
+                          ',deps)))))
+    (with-temp-file (expand-file-name (concat name ".el") dir)
+      (insert (format ";;; %s.el --- Stub -*- lexical-binding: t -*-\n(provide '%s)\n;;; %s.el ends here\n"
+                      name name name)))
+    dir))
+
+(defmacro my-test-with-fixture-elpa (elpa-var &rest body)
+  "Set up a temporary elpa dir bound to ELPA-VAR, evaluate BODY, then clean up.
+Saves and restores package state."
+  (declare (indent 1))
+  `(my-test-with-tmp-dir ,elpa-var
+     (let ((package-user-dir ,elpa-var)
+           (package-alist nil)
+           (package-activated-list nil)
+           (package--initialized nil)
+           (package-vc-selected-packages nil))
+       ,@body)))
+
+(ert-deftest vcupp-live/healthy-elpa-no-self-deps ()
   :tags '(:live)
-  "No package has both a bare VC directory and a versioned ELPA directory."
+  "Fixture elpa with correct deps has no self-dependencies."
   (skip-unless my-test-run-live-tests)
-  (should-not (vcupp-find-duplicate-packages)))
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "multi-file-pkg" elpa '((emacs "29.1")))
+    (my-test-install-fixture "simple-pkg" elpa '((emacs "29.1")))
+    (package-initialize)
+    (should-not (vcupp-find-self-deps))))
+
+(ert-deftest vcupp-live/detects-self-dep-from-extension ()
+  :tags '(:live)
+  "Fixture elpa with extension deps in -pkg.el triggers self-dep detection."
+  (skip-unless my-test-run-live-tests)
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "multi-file-pkg" elpa
+                             '((emacs "29.1") (multi-file-pkg "1.0")))
+    (package-initialize)
+    (should (memq 'multi-file-pkg (vcupp-find-self-deps)))))
+
+(ert-deftest vcupp-live/detects-duplicate-packages ()
+  :tags '(:live)
+  "Bare VC dir + versioned ELPA dir for same package is flagged."
+  (skip-unless my-test-run-live-tests)
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "multi-file-pkg" elpa '((emacs "29.1")))
+    (my-test-install-versioned-fixture "multi-file-pkg" "1.0" elpa
+                                       '((emacs "29.1")))
+    (should (equal (vcupp-find-duplicate-packages)
+                   '("multi-file-pkg")))))
+
+(ert-deftest vcupp-live/no-false-positive-duplicates ()
+  :tags '(:live)
+  "A versioned ELPA package without a bare counterpart is not flagged."
+  (skip-unless my-test-run-live-tests)
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "simple-pkg" elpa '((emacs "29.1")))
+    (my-test-install-versioned-fixture "dep-pkg" "2.0" elpa
+                                       '((emacs "29.1")))
+    (should-not (vcupp-find-duplicate-packages))))
 
 (ert-deftest vcupp-live/clean-package-initialize ()
   :tags '(:live)
-  "Re-initializing packages produces no max-lisp-eval-depth errors."
+  "Package activation produces no max-lisp-eval-depth errors."
   (skip-unless my-test-run-live-tests)
-  (let ((nesting-errors 0))
-    (advice-add 'message :before
-                (lambda (fmt &rest _args)
-                  (when (and (stringp fmt)
-                             (string-match-p "max-lisp-eval-depth" fmt))
-                    (setq nesting-errors (1+ nesting-errors))))
-                '((name . my-test-nesting-check)))
-    (unwind-protect
-        (progn
-          (setq package--initialized nil
-                package-activated-list nil)
-          (package-initialize))
-      (advice-remove 'message 'my-test-nesting-check))
-    (should (= nesting-errors 0))))
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "multi-file-pkg" elpa '((emacs "29.1")))
+    (my-test-install-fixture "simple-pkg" elpa '((emacs "29.1")))
+    (let ((nesting-errors 0))
+      (advice-add 'message :before
+                  (lambda (fmt &rest _args)
+                    (when (and (stringp fmt)
+                               (string-match-p "max-lisp-eval-depth" fmt))
+                      (setq nesting-errors (1+ nesting-errors))))
+                  '((name . my-test-nesting-check)))
+      (unwind-protect
+          (package-initialize)
+        (advice-remove 'message 'my-test-nesting-check))
+      (should (= nesting-errors 0)))))
+
+(ert-deftest vcupp-live/test-dir-excluded-from-byte-compile ()
+  :tags '(:live)
+  "VC package byte-compilation excludes test/ directories."
+  (skip-unless my-test-run-live-tests)
+  (my-test-with-fixture-elpa elpa
+    (my-test-install-fixture "multi-file-pkg" elpa '((emacs "29.1")))
+    (package-initialize)
+    (let* ((pkg-desc (cadr (assq 'multi-file-pkg package-alist)))
+           (pkg-dir (package-desc-dir pkg-desc))
+           (test-file (expand-file-name "test/multi-file-pkg-test.el" pkg-dir))
+           (main-file (expand-file-name "multi-file-pkg.el" pkg-dir))
+           captured-ignores)
+      (cl-letf (((symbol-function 'byte-recompile-directory)
+                 (lambda (_dir _depth _force)
+                   (setq captured-ignores byte-compile-ignore-files))))
+        (package--compile pkg-desc))
+      (should captured-ignores)
+      (should (my-test-any-regexp-matches-p captured-ignores test-file))
+      (should-not (my-test-any-regexp-matches-p captured-ignores main-file)))))
 
 ;;; test/test.el ends here
