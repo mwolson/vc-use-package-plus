@@ -271,9 +271,19 @@
 ;; ---------------------------------------------------------------------------
 
 (ert-deftest vcupp-handle-pre-release/dev-suffix ()
-  "-DEV suffix is stripped to produce a usable version."
+  "-DEV suffix is normalized to snapshot."
   (let ((result (vcupp--handle-pre-release #'package-strip-rcs-id "0.3.3-DEV")))
-    (should (equal (version-to-list result) '(0 3 3)))))
+    (should (equal (version-to-list result) '(0 3 3 -4)))))
+
+(ert-deftest vcupp-handle-pre-release/snapshot-suffix ()
+  "-SNAPSHOT suffix is normalized to snapshot."
+  (let ((result (vcupp--handle-pre-release #'package-strip-rcs-id "1.22.0-SNAPSHOT")))
+    (should (equal (version-to-list result) '(1 22 0 -4)))))
+
+(ert-deftest vcupp-handle-pre-release/rc-suffix ()
+  "-rc suffix is recognized natively by `version-to-list'."
+  (let ((result (vcupp--handle-pre-release #'package-strip-rcs-id "2.0.0-rc1")))
+    (should (equal (version-to-list result) '(2 0 0 -1 1)))))
 
 (ert-deftest vcupp-handle-pre-release/normal-version ()
   "Normal version strings pass through unchanged."

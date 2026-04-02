@@ -173,15 +173,20 @@ ORIG-FN is called with DIR and ARGS only when DIR is outside `package-user-dir'.
 (defun vcupp--handle-pre-release (orig-fn str)
   "Handle version headers that `package-strip-rcs-id' cannot parse.
 ORIG-FN is the original function, STR is the version string.
-Strips common pre-release suffixes (DEV, SNAPSHOT, alpha, beta, rc)
-so that packages with non-standard version headers still get a usable
-version number in their `-pkg.el' descriptor."
+First normalizes known pre-release suffixes (DEV, SNAPSHOT) to forms
+that `version-to-list' understands, then strips any remaining
+unrecognized suffixes so that packages with non-standard version
+headers still get a usable version number in their `-pkg.el'
+descriptor."
   (or (condition-case nil (funcall orig-fn str) (error nil))
       (when str
-        (condition-case nil
-            (funcall orig-fn (replace-regexp-in-string
-                              "-\\(?:DEV\\|SNAPSHOT\\|alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
-          (error nil)))))
+        (let ((normalized (replace-regexp-in-string
+                           "-\\(?:DEV\\|SNAPSHOT\\)[^.]*\\'" "snapshot" str)))
+          (or (condition-case nil (funcall orig-fn normalized) (error nil))
+              (condition-case nil
+                  (funcall orig-fn (replace-regexp-in-string
+                                    "-\\(?:alpha\\|beta\\|rc\\)[^.]*\\'" "" str))
+                (error nil)))))))
 
 (defun vcupp--default-test-ignores (pkg-dir)
   "Return regexp patterns to exclude test directories under PKG-DIR."
