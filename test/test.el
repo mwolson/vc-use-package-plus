@@ -18,6 +18,9 @@
 (defvar my-test-load-order nil)
 (defvar my-test-post-load-called nil)
 
+(defvar my-test-run-live-tests nil
+  "When non-nil, include live tests that inspect the real elpa directory.")
+
 (defun my-test--display-warning-fail (type message &optional _level _buffer-name)
   "Fail the current test for warning TYPE with MESSAGE."
   (ert-fail (format "Unexpected warning (%s): %s" type message)))
@@ -885,5 +888,42 @@
 (ert-deftest vcupp-compile-files-keyword-registered ()
   ":compile-files is registered in use-package-vc-valid-keywords."
   (should (memq :compile-files use-package-vc-valid-keywords)))
+
+;; ---------------------------------------------------------------------------
+;; Live tests -- require a real ~/.emacs.d/elpa with installed packages
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-live/no-self-deps ()
+  :tags '(:live)
+  "No installed package depends on itself."
+  (skip-unless my-test-run-live-tests)
+  (package-initialize)
+  (let ((self-deps (vcupp-find-self-deps)))
+    (should-not self-deps)))
+
+(ert-deftest vcupp-live/no-duplicate-packages ()
+  :tags '(:live)
+  "No package has both a bare VC directory and a versioned ELPA directory."
+  (skip-unless my-test-run-live-tests)
+  (should-not (vcupp-find-duplicate-packages)))
+
+(ert-deftest vcupp-live/clean-package-initialize ()
+  :tags '(:live)
+  "Re-initializing packages produces no max-lisp-eval-depth errors."
+  (skip-unless my-test-run-live-tests)
+  (let ((nesting-errors 0))
+    (advice-add 'message :before
+                (lambda (fmt &rest _args)
+                  (when (and (stringp fmt)
+                             (string-match-p "max-lisp-eval-depth" fmt))
+                    (setq nesting-errors (1+ nesting-errors))))
+                '((name . my-test-nesting-check)))
+    (unwind-protect
+        (progn
+          (setq package--initialized nil
+                package-activated-list nil)
+          (package-initialize))
+      (advice-remove 'message 'my-test-nesting-check))
+    (should (= nesting-errors 0))))
 
 ;;; test/test.el ends here

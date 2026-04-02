@@ -20,6 +20,8 @@
     "init": "bun run up && bun run init:hooks",
     "init:hooks": "lefthook install",
     "test": "emacs -Q --batch -l vcupp.el -l vcupp-batch.el -l vcupp-native-comp.el -l vcupp-install-packages.el -l test/test.el -f ert-run-tests-batch-and-exit",
+    "test:all": "bun run test && bun run test:live",
+    "test:live": "emacs -Q --batch -l vcupp.el -l vcupp-batch.el -l vcupp-native-comp.el -l vcupp-install-packages.el -l test/test.el --eval \"(setq my-test-run-live-tests t)\" -f ert-run-tests-batch-and-exit",
     "up": "mise use -g bun@latest && mise install && bun install"
   },
   "devDependencies": {
