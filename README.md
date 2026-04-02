@@ -132,6 +132,11 @@ upgrades, and byte-compiles packages. Two things are needed:
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
 
+   ;; Prevent elpa/ checkouts from being added to the project list.
+   ;; vcupp cleans up stale entries and blocks future ones on load,
+   ;; but this line covers vcupp's own initial install.
+   (advice-add 'project-remember-projects-under :override #'ignore)
+
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")
      :demand t)
@@ -154,6 +159,8 @@ upgrades, and byte-compiles packages. Two things are needed:
 
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
+
+   (advice-add 'project-remember-projects-under :override #'ignore)
 
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")
@@ -205,6 +212,8 @@ Two things are needed:
    (package-initialize)
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
+
+   (advice-add 'project-remember-projects-under :override #'ignore)
 
    (use-package vcupp
      :vc (:url "https://github.com/mwolson/vcupp")

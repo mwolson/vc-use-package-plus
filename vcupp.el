@@ -258,10 +258,19 @@ directory exclusions are applied alongside any `.elpaignore' patterns."
        (t
         (funcall orig-fn pkg-desc))))))
 
+(advice-add 'project-remember-projects-under :around #'vcupp--skip-elpa)
+
+(with-eval-after-load 'project
+  (when (file-directory-p package-user-dir)
+    (let ((elpa-prefix (file-name-as-directory
+                        (expand-file-name package-user-dir))))
+      (dolist (root (project-known-project-roots))
+        (when (string-prefix-p elpa-prefix (expand-file-name root))
+          (project-forget-project root))))))
+
 (with-eval-after-load 'package-vc
   (advice-add 'package-vc--unpack :before #'vcupp--save-spec-early)
   (advice-add 'package-vc--unpack-1 :around #'vcupp--selected-file-deps)
-  (advice-add 'project-remember-projects-under :around #'vcupp--skip-elpa)
   (advice-add 'package-strip-rcs-id :around #'vcupp--handle-pre-release)
   (advice-add 'package--compile :around #'vcupp--byte-compile-targets)
   (advice-add 'package--native-compile-async :around #'vcupp--native-compile-targets))
