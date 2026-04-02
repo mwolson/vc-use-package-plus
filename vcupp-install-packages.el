@@ -184,32 +184,39 @@ HEAD did not change after pulling."
 ARGS is an optional plist.  Supported keys are `:root', `:load-files',
 `:setup-forms', `:preload-features', `:delete-elc-globs',
 `:post-load-forms', `:post-install-forms', `:refresh-contents',
-and `:package-native-compile'."
+`:package-native-compile', and `:upgrade'.
+
+When `:upgrade' is nil, the step that pulls latest commits for all
+VC packages is skipped.  Missing packages are still installed.
+Defaults to t."
   (vcupp-batch-with-effective-args args
-    (setq vcupp-install-packages--desired-vc-specs nil)
-    (vcupp-batch-run-setup)
-    (setq package-native-compile vcupp-batch-package-native-compile)
-    (package-initialize)
-    (require 'use-package)
-    (when vcupp-batch-refresh-contents
-      (package-refresh-contents))
-    (advice-add 'use-package-handler/:vc :before
-                #'vcupp-install-packages--record-install-spec-advice)
-    (advice-add 'project-remember-projects-under :override #'ignore)
-    (advice-add 'yes-or-no-p :override #'always)
-    (setq vcupp-install-packages-active-p t)
-    (unwind-protect
-        (progn
-          (vcupp-batch-load-config)
-          (vcupp-install-packages--sync-vc-specs)
-          (vcupp-install-packages--reinstall-changed-vc-urls)
-          (vcupp-install-packages--attach-vc-packages-to-branches)
-          (vcupp-install-packages--upgrade-vc-packages)
-          (vcupp-install-packages--clean-stale-vc-elc-files)
-          (when vcupp-batch-post-install-forms
-            (package-load-all-descriptors))
-          (vcupp-batch-run-post-install))
-      (setq vcupp-install-packages-active-p nil))))
+    (let ((do-upgrade (vcupp-batch--plist-value
+                       (or args vcupp-batch-args) :upgrade t)))
+      (setq vcupp-install-packages--desired-vc-specs nil)
+      (vcupp-batch-run-setup)
+      (setq package-native-compile vcupp-batch-package-native-compile)
+      (package-initialize)
+      (require 'use-package)
+      (when vcupp-batch-refresh-contents
+        (package-refresh-contents))
+      (advice-add 'use-package-handler/:vc :before
+                  #'vcupp-install-packages--record-install-spec-advice)
+      (advice-add 'project-remember-projects-under :override #'ignore)
+      (advice-add 'yes-or-no-p :override #'always)
+      (setq vcupp-install-packages-active-p t)
+      (unwind-protect
+          (progn
+            (vcupp-batch-load-config)
+            (vcupp-install-packages--sync-vc-specs)
+            (vcupp-install-packages--reinstall-changed-vc-urls)
+            (vcupp-install-packages--attach-vc-packages-to-branches)
+            (when do-upgrade
+              (vcupp-install-packages--upgrade-vc-packages))
+            (vcupp-install-packages--clean-stale-vc-elc-files)
+            (when vcupp-batch-post-install-forms
+              (package-load-all-descriptors))
+            (vcupp-batch-run-post-install))
+        (setq vcupp-install-packages-active-p nil)))))
 
 (provide 'vcupp-install-packages)
 ;;; vcupp-install-packages.el ends here

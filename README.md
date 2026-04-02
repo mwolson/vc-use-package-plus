@@ -300,11 +300,12 @@ Shared keys (used by both entry points):
 
 Additional keys for `vcupp-install-packages`:
 
-| Key                       | Default | Description                                                 |
-| ------------------------- | ------- | ----------------------------------------------------------- |
-| `:post-install-forms`     | `nil`   | Forms evaluated after install/upgrade completes.            |
-| `:refresh-contents`       | `t`     | Whether to run `package-refresh-contents` first.            |
-| `:package-native-compile` | `t`     | Value assigned to `package-native-compile` during installs. |
+| Key                       | Default | Description                                                                                        |
+| ------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `:upgrade`                | `t`     | Pull latest commits for all VC packages. Set to nil to install missing packages without upgrading. |
+| `:post-install-forms`     | `nil`   | Forms evaluated after install/upgrade completes.                                                   |
+| `:refresh-contents`       | `t`     | Whether to run `package-refresh-contents` first.                                                   |
+| `:package-native-compile` | `t`     | Value assigned to `package-native-compile` during installs.                                        |
 
 Additional keys for `vcupp-native-comp-all`:
 
