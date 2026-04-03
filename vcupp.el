@@ -332,6 +332,26 @@ ORIG-FN is the original `use-package-normalize--vc-arg' function."
 
 (advice-add 'use-package-normalize--vc-arg :around #'vcupp--normalize-vc-arg)
 
+(defun vcupp--vc-handler-always-runtime (name _keyword arg rest state)
+  "Ensure `:vc' install call for NAME survives byte-compilation.
+The built-in `use-package-handler/:vc' calls `use-package-vc-install'
+at compile time and omits it from the byte-compiled body.  When
+compile-angel or a similar tool byte-compiles an init file, packages
+that were missing at compile time stay missing at runtime because the
+install call is absent from the `.elc'.  This override always includes
+the install call in the body while preserving the compile-time install
+for symbol resolution.  _KEYWORD is ignored.  ARG, REST, and STATE
+are forwarded from `use-package-handler/:vc'."
+  (let ((body (use-package-process-keywords name rest state))
+        (local-path (car (plist-get state :load-path))))
+    (when (bound-and-true-p byte-compile-current-file)
+      (funcall #'use-package-vc-install arg local-path))
+    (push `(use-package-vc-install ',arg ,local-path) body)
+    body))
+
+(advice-add 'use-package-handler/:vc :override
+            #'vcupp--vc-handler-always-runtime)
+
 (defun vcupp-suppress-native-comp-jit ()
   "Configure native-comp for configs that use `vcupp-native-comp-all'.
 Silences async native-comp warnings and disables JIT compilation,
@@ -384,6 +404,7 @@ same base name usually means a dependency was pulled from ELPA that a
   "Remove all advice installed by vcupp.
 Called automatically by `unload-feature'."
   (advice-remove 'use-package-normalize--vc-arg #'vcupp--normalize-vc-arg)
+  (advice-remove 'use-package-handler/:vc #'vcupp--vc-handler-always-runtime)
   (advice-remove 'package-vc--unpack #'vcupp--save-spec-early)
   (advice-remove 'package-vc--unpack-1 #'vcupp--selected-file-deps)
   (advice-remove 'project-remember-projects-under #'vcupp--skip-elpa)

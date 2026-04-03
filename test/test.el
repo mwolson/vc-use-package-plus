@@ -974,6 +974,46 @@ Includes an `add-to-list' for load-path and optional EXTRA-CONTENT."
   (should (memq :compile-files use-package-vc-valid-keywords)))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp.el -- :vc handler override
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-vc-handler/always-includes-install-in-body ()
+  "The :vc handler override includes `use-package-vc-install' in the body.
+The built-in handler omits the install call from byte-compiled output,
+which means packages missing at compile time stay missing at runtime."
+  (let* ((body (vcupp--vc-handler-always-runtime
+                'my-test-pkg :vc
+                '(my-test-pkg (:url "https://example.com") nil)
+                '() '())))
+    (should (cl-some (lambda (form)
+                       (and (listp form)
+                            (eq (car form) 'use-package-vc-install)))
+                     body))))
+
+(ert-deftest vcupp-vc-handler/calls-install-at-compile-time ()
+  "The :vc handler override preserves compile-time install behavior."
+  (let ((installed nil))
+    (cl-letf (((symbol-function 'use-package-vc-install)
+               (lambda (&rest _) (setq installed t)))
+              (byte-compile-current-file t))
+      (vcupp--vc-handler-always-runtime
+       'my-test-pkg :vc
+       '(my-test-pkg (:url "https://example.com") nil)
+       '() '()))
+    (should installed)))
+
+(ert-deftest vcupp-vc-handler/skips-compile-time-install-at-runtime ()
+  "The :vc handler override does not call install at runtime."
+  (let ((installed nil))
+    (cl-letf (((symbol-function 'use-package-vc-install)
+               (lambda (&rest _) (setq installed t))))
+      (vcupp--vc-handler-always-runtime
+       'my-test-pkg :vc
+       '(my-test-pkg (:url "https://example.com") nil)
+       '() '()))
+    (should-not installed)))
+
+;; ---------------------------------------------------------------------------
 ;; Live tests -- use fixture packages in a temporary elpa directory
 ;; ---------------------------------------------------------------------------
 
