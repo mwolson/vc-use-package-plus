@@ -10,6 +10,12 @@ WARNING: This project is still in alpha phase and contracts may change.
 
 ## Why use this library
 
+In short: You're working on a polished
+[Emacs starter kit](https://github.com/mwolson/emacs-shared) or personal config
+and want controlled package installation and native-compilation during a manual
+bootstrap command (and not when you start Emacs itself, where such things would
+feel slow).
+
 Emacs 30 added `use-package :vc`, which installs packages directly from Git
 repositories. This is a powerful alternative to MELPA:
 
@@ -43,6 +49,8 @@ so you choose when to update and every startup is consistently fast.
 - All your dependencies are on MELPA, MELPA is working well for you, and you
   don't need packages from Git, and/or `package-vc` is already working well
   enough.
+- You're using something like straight or elpaca and are opting out of most of
+  the Emacs-managed package code.
 - The slowdown on upgrading packages compared to MELPA is too much (negligible
   if you're using the bootstrap approach, but still can be upwards of 10+
   seconds).
@@ -50,9 +58,10 @@ so you choose when to update and every startup is consistently fast.
   (If this is only an issue for some packages, you can mix and match: use MELPA
   for packages with deep dependency trees and `:vc` for the rest.)
 - You don't want to deal with native compilation or set up a bootstrap script.
-  Without bootstrapping, Emacs native-compiles packages on-the-fly via JIT,
-  which causes a one-time slowdown after every update. If that tradeoff is fine
-  for your workflow, the batch helpers here add complexity for little benefit.
+  Without bootstrapping: on Emacs startup, Emacs installs, updates (if asked)
+  and native-compiles (if asked) packages on-the-fly, which causes a slowdown
+  after every update. If that tradeoff is fine for your workflow, the batch
+  helpers here add complexity for little benefit.
 
 ## Easy Install Flow
 
