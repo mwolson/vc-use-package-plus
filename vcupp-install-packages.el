@@ -206,6 +206,7 @@ Defaults to t."
       (setq vcupp-install-packages-active-p t)
       (unwind-protect
           (progn
+            (message "Installing packages...")
             (vcupp-batch-load-config)
             (vcupp-install-packages--sync-vc-specs)
             (vcupp-install-packages--reinstall-changed-vc-urls)
@@ -215,7 +216,8 @@ Defaults to t."
             (vcupp-install-packages--clean-stale-vc-elc-files)
             (when vcupp-batch-post-install-forms
               (package-load-all-descriptors))
-            (vcupp-batch-run-post-install))
+            (vcupp-batch-run-post-install)
+            (message "Installing packages...done"))
         (setq vcupp-install-packages-active-p nil)))))
 
 (provide 'vcupp-install-packages)

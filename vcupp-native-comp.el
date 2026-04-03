@@ -90,7 +90,8 @@ which is a no-op when it is set."
               (vcupp-batch-load-config)
               (message "Native-compiling files...")
               (dolist (file (vcupp-batch-compile-files))
-                (native-compile (vcupp-batch-expand-file file))))
+                (native-compile (vcupp-batch-expand-file file)))
+              (message "Native-compiling files...done"))
           (vcupp-native-comp--disable-compile-angel compile-angel-state)
           (setq vcupp-native-comp-active-p nil))))))
 
