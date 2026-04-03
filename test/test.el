@@ -625,6 +625,80 @@
     (should-not activated)))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp.el -- preload-package
+;; ---------------------------------------------------------------------------
+
+(defun my-test-write-autoloads (dir pkg-name &optional extra-content)
+  "Write a minimal autoloads file for PKG-NAME in DIR.
+Includes an `add-to-list' for load-path and optional EXTRA-CONTENT."
+  (my-test-write-el-file
+   dir (format "%s-autoloads.el" pkg-name)
+   (concat
+    ";;; " pkg-name "-autoloads.el --- autoloads -*- lexical-binding: t -*-\n"
+    "(add-to-list 'load-path\n"
+    "  (or (and load-file-name\n"
+    "           (directory-file-name (file-name-directory load-file-name)))\n"
+    "      (car load-path)))\n"
+    (or extra-content "")
+    "(provide '" pkg-name "-autoloads)\n")))
+
+(ert-deftest vcupp-preload-package/loads-vc-autoloads ()
+  "Loads autoloads from a bare VC-style directory."
+  (my-test-with-tmp-dir tmp
+    (let* ((pkg-dir (expand-file-name "mypkg" tmp)))
+      (make-directory pkg-dir)
+      (my-test-write-autoloads pkg-dir "mypkg")
+      (let ((package-user-dir tmp)
+            (load-path load-path))
+        (vcupp-preload-package 'mypkg)
+        (should (member pkg-dir load-path))))))
+
+(ert-deftest vcupp-preload-package/loads-versioned-autoloads ()
+  "Loads autoloads from a versioned ELPA-style directory."
+  (my-test-with-tmp-dir tmp
+    (let* ((pkg-dir (expand-file-name "mypkg-1.2" tmp)))
+      (make-directory pkg-dir)
+      (my-test-write-autoloads pkg-dir "mypkg")
+      (let ((package-user-dir tmp)
+            (load-path load-path))
+        (vcupp-preload-package 'mypkg)
+        (should (member pkg-dir load-path))))))
+
+(ert-deftest vcupp-preload-package/prefers-vc-over-versioned ()
+  "Prefers bare VC-style directory when both exist."
+  (my-test-with-tmp-dir tmp
+    (let* ((vc-dir (expand-file-name "mypkg" tmp))
+           (elpa-dir (expand-file-name "mypkg-1.2" tmp)))
+      (make-directory vc-dir)
+      (make-directory elpa-dir)
+      (my-test-write-autoloads vc-dir "mypkg")
+      (my-test-write-autoloads elpa-dir "mypkg")
+      (let ((package-user-dir tmp)
+            (load-path load-path))
+        (vcupp-preload-package 'mypkg)
+        (should (member vc-dir load-path))
+        (should-not (member elpa-dir load-path))))))
+
+(ert-deftest vcupp-preload-package/noop-when-not-installed ()
+  "Returns nil without error when the package is not installed."
+  (my-test-with-tmp-dir tmp
+    (let ((package-user-dir tmp)
+          (load-path load-path))
+      (should-not (vcupp-preload-package 'nonexistent))
+      (should-not (cl-find-if (lambda (p) (string-prefix-p tmp p))
+                              load-path)))))
+
+(ert-deftest vcupp-preload-package/noop-when-autoloads-missing ()
+  "Returns nil without error when directory exists but autoloads are missing."
+  (my-test-with-tmp-dir tmp
+    (let* ((pkg-dir (expand-file-name "mypkg" tmp)))
+      (make-directory pkg-dir)
+      (let ((package-user-dir tmp)
+            (load-path load-path))
+        (should-not (vcupp-preload-package 'mypkg))
+        (should-not (member pkg-dir load-path))))))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- active-p lifecycle
 ;; ---------------------------------------------------------------------------
 

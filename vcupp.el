@@ -57,7 +57,7 @@ without paying the cost of a full `package-initialize'."
               (autoload-name (expand-file-name
                               (format "%s-autoloads" sym-name)
                               pkg-dir)))
-    (load autoload-name nil t)))
+    (load autoload-name t t)))
 
 (defun vcupp-activate-package (sym)
   "Activate installed package SYM when it is present in `package-alist'."

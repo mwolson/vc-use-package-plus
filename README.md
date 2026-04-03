@@ -98,14 +98,16 @@ package:
 
 ```elisp
 ;; In early-init.el -- vcupp itself needs a manual bootstrap since
-;; vcupp-preload-package is not yet available at that point.
+;; vcupp-preload-package is not yet available at that point.  Adding the
+;; directory to load-path is enough for :demand to find vcupp.el, and is
+;; more resilient than loading autoloads (which can be missing if
+;; package-vc--unpack-1 failed silently during an upgrade).
 (use-package vcupp
   :vc (:url "https://github.com/mwolson/vcupp")
   :init
   (when-let* ((dir (expand-file-name "vcupp" package-user-dir))
-              ((file-directory-p dir))
-              (al-file (expand-file-name "vcupp-autoloads" dir)))
-    (load al-file nil t))
+              ((file-directory-p dir)))
+    (add-to-list 'load-path dir))
   :demand t)
 
 ;; After vcupp is loaded, use vcupp-preload-package for other packages.
