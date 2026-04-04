@@ -6,7 +6,7 @@
 batch tooling for package installation and native compilation. Requires Emacs
 30.1 or newer.
 
-WARNING: This project is still in alpha phase and contracts may change.
+WARNING: This project is still in beta phase and contracts may change.
 
 ## Why use this library
 
