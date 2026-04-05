@@ -15,6 +15,7 @@
     "fix:md:file": "prettier --write",
     "fix:yaml": "prettier --write '**/*.yaml'",
     "fix:yaml:file": "prettier --write",
+    "hooks:check": "lefthook run pre-commit --all-files --no-stage-fixed",
     "hooks:pre-commit": "lefthook run pre-commit",
     "hooks:pre-commit:all": "lefthook run pre-commit --all-files",
     "init": "bun run up && bun run init:hooks",

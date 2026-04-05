@@ -14,6 +14,18 @@ Prefer to write plans in the `plans/` directory.
 
 ## Dev loop tools
 
+### Running checks
+
+Run checks against the working tree (no staging required):
+
+```sh
+bun run hooks:check
+```
+
+This runs the pre-commit hooks against all working tree files with
+`--all-files --no-stage-fixed`, so there is no stashing and no auto-staging.
+Prefer this for iterating on changes before committing.
+
 ### Running tests
 
 Run unit tests with:
