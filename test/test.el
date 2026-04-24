@@ -736,6 +736,19 @@ Includes an `add-to-list' for load-path and optional EXTRA-CONTENT."
     (should (equal (alist-get 'my-pkg vcupp-install-packages--desired-vc-specs)
                    '(my-pkg (:url "https://example.com") nil)))))
 
+(ert-deftest vcupp-install-packages-record-vc-spec/preserves-order ()
+  "Recording VC specs preserves declaration order and updates duplicates."
+  (let ((vcupp-install-packages--desired-vc-specs nil))
+    (vcupp-install-packages--record-vc-spec
+     'dep nil '(dep (:url "https://example.com/dep") nil) nil nil)
+    (vcupp-install-packages--record-vc-spec
+     'app nil '(app (:url "https://example.com/app") nil) nil nil)
+    (vcupp-install-packages--record-vc-spec
+     'dep nil '(dep (:url "https://example.com/dep2") nil) nil nil)
+    (should (equal vcupp-install-packages--desired-vc-specs
+                   '((dep . (dep (:url "https://example.com/dep2") nil))
+                     (app . (app (:url "https://example.com/app") nil)))))))
+
 ;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- VC spec syncing
 ;; ---------------------------------------------------------------------------
@@ -828,6 +841,39 @@ Includes an `add-to-list' for load-path and optional EXTRA-CONTENT."
       (vcupp-install-packages--install-desired-vc-packages))
     (should (equal installed
                    '((foo :url "https://example.com/foo") nil)))))
+
+(ert-deftest vcupp-install-packages-install-recorded-vc-deps/converts-before-install ()
+  "Runtime VC installs first convert already-recorded non-VC packages."
+  (let* ((dep-desc (package-desc-create
+                    :name 'dep
+                    :version '(1 0)
+                    :dir "/tmp/dep-1.0"))
+         (package-alist (list (list 'dep dep-desc)))
+         (package-vc-selected-packages nil)
+         (vcupp-install-packages-active-p t)
+         (vcupp-install-packages--desired-vc-specs
+          '((dep . (dep (:url "https://example.com/dep") nil))
+            (app . (app (:url "https://example.com/app") nil))))
+         events)
+    (cl-letf (((symbol-function 'package-vc-p) (lambda (_) nil))
+              ((symbol-function 'package-installed-p) (lambda (_) nil))
+              ((symbol-function 'package-delete)
+               (lambda (desc _force _nosave)
+                 (push (list 'delete (package-desc-name desc)) events)))
+              ((symbol-function 'package-vc-install)
+               (lambda (pkg-spec _rev)
+                 (push (list 'install-vc (car pkg-spec)) events))))
+      (vcupp-install-packages--install-recorded-vc-deps
+       (lambda (_arg &optional _local-path)
+         (push '(use-package-install app) events))
+       '(app (:url "https://example.com/app") nil)))
+    (should (equal (nreverse events)
+                   '((delete dep)
+                     (install-vc dep)
+                     (use-package-install app))))
+    (should (equal (alist-get 'dep package-vc-selected-packages nil nil
+                              #'string=)
+                   '(:url "https://example.com/dep")))))
 
 ;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- stale .elc cleanup

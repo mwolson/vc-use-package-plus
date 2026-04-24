@@ -33,8 +33,11 @@ User configs can check this with `bound-and-true-p' to enable
 
 (defun vcupp-install-packages--record-vc-spec (name _keyword arg _rest _state)
   "Store the normalized VC spec ARG for package NAME."
-  (setf (alist-get name vcupp-install-packages--desired-vc-specs nil nil #'eq)
-        arg))
+  (if-let* ((entry (assq name vcupp-install-packages--desired-vc-specs)))
+      (setcdr entry arg)
+    (setq vcupp-install-packages--desired-vc-specs
+          (append vcupp-install-packages--desired-vc-specs
+                  (list (cons name arg))))))
 
 (defun vcupp-install-packages--record-install-spec-advice (name keyword arg rest state)
   "Advice wrapper that records the VC spec for NAME.
@@ -74,12 +77,14 @@ KEYWORD, ARG, REST, and STATE are forwarded from `use-package-handler/:vc'."
                  (cons (package-desc-name pkg-desc) desired-spec)
                  desired-rev)))))))))
 
-(defun vcupp-install-packages--install-desired-vc-packages ()
+(defun vcupp-install-packages--install-desired-vc-packages (&optional quiet)
   "Install declared VC packages that are present as non-VC packages.
 If a package is already installed from ELPA, `use-package :vc'
 treats it as satisfied and does not convert it to a VC checkout.
-This makes the batch install converge on the declared VC specs."
-  (message "Checking packages for VC conversion...")
+This makes the batch install converge on the declared VC specs.
+When QUIET is non-nil, omit the leading status message."
+  (unless quiet
+    (message "Checking packages for VC conversion..."))
   (dolist (entry vcupp-install-packages--desired-vc-specs)
     (pcase-let ((`(,name ,spec ,rev)
                  (vcupp-install-packages--desired-vc-spec-parts entry)))
@@ -93,6 +98,17 @@ This makes the batch install converge on the declared VC specs."
            ((and (not pkg-desc) (package-installed-p name))
             (message "  %s: installing VC source over built-in package" name)
             (package-vc-install (cons name spec) rev))))))))
+
+(defun vcupp-install-packages--install-recorded-vc-deps (orig-fn arg
+                                                                 &optional
+                                                                 local-path)
+  "Convert recorded VC packages before running `use-package-vc-install'.
+ORIG-FN, ARG, and optional LOCAL-PATH are forwarded to
+`use-package-vc-install'."
+  (when vcupp-install-packages-active-p
+    (vcupp-install-packages--sync-vc-specs)
+    (vcupp-install-packages--install-desired-vc-packages t))
+  (funcall orig-fn arg local-path))
 
 (defun vcupp-install-packages--attach-vc-packages-to-branches ()
   "Check out a tracking branch for VC packages stuck on detached HEAD."
@@ -230,6 +246,8 @@ Defaults to t."
         (package-refresh-contents))
       (advice-add 'use-package-handler/:vc :before
                   #'vcupp-install-packages--record-install-spec-advice)
+      (advice-add 'use-package-vc-install :around
+                  #'vcupp-install-packages--install-recorded-vc-deps)
       (advice-add 'project-remember-projects-under :override #'ignore)
       (advice-add 'yes-or-no-p :override #'always)
       (setq vcupp-install-packages-active-p t)
@@ -248,6 +266,8 @@ Defaults to t."
               (package-load-all-descriptors))
             (vcupp-batch-run-post-install)
             (message "Installing packages...done"))
+        (advice-remove 'use-package-vc-install
+                       #'vcupp-install-packages--install-recorded-vc-deps)
         (setq vcupp-install-packages-active-p nil)))))
 
 (provide 'vcupp-install-packages)
