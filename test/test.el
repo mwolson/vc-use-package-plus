@@ -771,6 +771,65 @@ Includes an `add-to-list' for load-path and optional EXTRA-CONTENT."
                      :compile-files ("b.el"))))))
 
 ;; ---------------------------------------------------------------------------
+;; vcupp-install-packages.el -- VC package conversion
+;; ---------------------------------------------------------------------------
+
+(ert-deftest vcupp-install-packages-install-desired-vc/replaces-elpa-package ()
+  "Desired VC packages replace existing non-VC packages."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'foo
+                    :version '(1 0)
+                    :dir "/tmp/foo-1.0"))
+         (package-alist (list (list 'foo pkg-desc)))
+         (vcupp-install-packages--desired-vc-specs
+          '((foo . (foo (:url "https://example.com/foo") nil))))
+         deleted installed)
+    (cl-letf (((symbol-function 'package-vc-p) (lambda (_) nil))
+              ((symbol-function 'package-delete)
+               (lambda (desc force nosave)
+                 (setq deleted (list desc force nosave))))
+              ((symbol-function 'package-vc-install)
+               (lambda (pkg-spec rev)
+                 (setq installed (list pkg-spec rev)))))
+      (vcupp-install-packages--install-desired-vc-packages))
+    (should (equal deleted (list pkg-desc t t)))
+    (should (equal installed
+                   '((foo :url "https://example.com/foo") nil)))))
+
+(ert-deftest vcupp-install-packages-install-desired-vc/keeps-vc-package ()
+  "Desired VC packages are left alone when already installed from VC."
+  (let* ((pkg-desc (package-desc-create
+                    :name 'foo
+                    :version '(1 0)
+                    :kind 'vc
+                    :dir "/tmp/foo"))
+         (package-alist (list (list 'foo pkg-desc)))
+         (vcupp-install-packages--desired-vc-specs
+          '((foo . (foo (:url "https://example.com/foo") nil))))
+         called)
+    (cl-letf (((symbol-function 'package-vc-p) (lambda (_) t))
+              ((symbol-function 'package-delete)
+               (lambda (&rest _) (setq called t)))
+              ((symbol-function 'package-vc-install)
+               (lambda (&rest _) (setq called t))))
+      (vcupp-install-packages--install-desired-vc-packages))
+    (should-not called)))
+
+(ert-deftest vcupp-install-packages-install-desired-vc/installs-over-built-in ()
+  "Desired VC packages install when only a built-in package is present."
+  (let ((package-alist nil)
+        (vcupp-install-packages--desired-vc-specs
+         '((foo . (foo (:url "https://example.com/foo") nil))))
+        installed)
+    (cl-letf (((symbol-function 'package-installed-p) (lambda (_) t))
+              ((symbol-function 'package-vc-install)
+               (lambda (pkg-spec rev)
+                 (setq installed (list pkg-spec rev)))))
+      (vcupp-install-packages--install-desired-vc-packages))
+    (should (equal installed
+                   '((foo :url "https://example.com/foo") nil)))))
+
+;; ---------------------------------------------------------------------------
 ;; vcupp-install-packages.el -- stale .elc cleanup
 ;; ---------------------------------------------------------------------------
 

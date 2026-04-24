@@ -34,6 +34,8 @@ vcupp fixes several rough edges in the built-in `:vc` support:
 - `package-vc` only scans selected files for dependencies instead of walking an
   entire checkout.
 - VC installs do not pollute the user's project list with `elpa/` checkouts.
+- Batch installs convert packages declared with `:vc` from existing ELPA
+  installs to the requested VC checkout.
 - Pre-release version headers like `0.3.3-DEV` produce a usable package version
   instead of breaking installation.
 - Changing the `use-package` form to a forked repo is expected to work.
@@ -146,6 +148,7 @@ upgrades, and byte-compiles packages. Two things are needed:
    (require 'package)
    ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
    ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+   (setq package-install-upgrade-built-in t)
    (package-initialize)
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
@@ -173,6 +176,7 @@ upgrades, and byte-compiles packages. Two things are needed:
    (require 'package)
    ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
    ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+   (setq package-install-upgrade-built-in t)
    (package-initialize)
 
    (require 'use-package)
@@ -228,6 +232,7 @@ Two things are needed:
    (require 'package)
    ;; If your config lives under ~/.config/emacs/ instead of ~/.emacs.d:
    ;; (setq package-user-dir (expand-file-name "elpa" "~/.config/emacs/"))
+   (setq package-install-upgrade-built-in t)
    (package-initialize)
    (require 'use-package)
    (setq use-package-vc-prefer-newest t)
@@ -261,7 +266,8 @@ A complete early-init.el using both bootstrap features:
 
 ```elisp
 (require 'use-package)
-(setq use-package-vc-prefer-newest t)
+(setq package-install-upgrade-built-in t
+      use-package-vc-prefer-newest t)
 
 (use-package vcupp
   :vc (:url "https://github.com/mwolson/vcupp")

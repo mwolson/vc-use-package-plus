@@ -23,6 +23,14 @@ User configs can check this with `bound-and-true-p' to enable
 (defvar vcupp-install-packages--desired-vc-specs nil
   "Normalized VC specs declared by `use-package' during this run.")
 
+(defun vcupp-install-packages--desired-vc-spec-parts (entry)
+  "Return package, desired spec, and revision from desired VC ENTRY."
+  (let* ((name (car entry))
+         (arg (cdr entry))
+         (spec (nth 1 arg))
+         (rev (nth 2 arg)))
+    (list name spec rev)))
+
 (defun vcupp-install-packages--record-vc-spec (name _keyword arg _rest _state)
   "Store the normalized VC spec ARG for package NAME."
   (setf (alist-get name vcupp-install-packages--desired-vc-specs nil nil #'eq)
@@ -65,6 +73,26 @@ KEYWORD, ARG, REST, and STATE are forwarded from `use-package-handler/:vc'."
                 (package-vc-install
                  (cons (package-desc-name pkg-desc) desired-spec)
                  desired-rev)))))))))
+
+(defun vcupp-install-packages--install-desired-vc-packages ()
+  "Install declared VC packages that are present as non-VC packages.
+If a package is already installed from ELPA, `use-package :vc'
+treats it as satisfied and does not convert it to a VC checkout.
+This makes the batch install converge on the declared VC specs."
+  (message "Checking packages for VC conversion...")
+  (dolist (entry vcupp-install-packages--desired-vc-specs)
+    (pcase-let ((`(,name ,spec ,rev)
+                 (vcupp-install-packages--desired-vc-spec-parts entry)))
+      (when spec
+        (let ((pkg-desc (cadr (assq name package-alist))))
+          (cond
+           ((and pkg-desc (not (package-vc-p pkg-desc)))
+            (message "  %s: reinstalling from VC source" name)
+            (package-delete pkg-desc t t)
+            (package-vc-install (cons name spec) rev))
+           ((and (not pkg-desc) (package-installed-p name))
+            (message "  %s: installing VC source over built-in package" name)
+            (package-vc-install (cons name spec) rev))))))))
 
 (defun vcupp-install-packages--attach-vc-packages-to-branches ()
   "Check out a tracking branch for VC packages stuck on detached HEAD."
@@ -194,7 +222,8 @@ Defaults to t."
                        (or args vcupp-batch-args) :upgrade t)))
       (setq vcupp-install-packages--desired-vc-specs nil)
       (vcupp-batch-run-setup)
-      (setq package-native-compile vcupp-batch-package-native-compile)
+      (setq package-install-upgrade-built-in t
+            package-native-compile vcupp-batch-package-native-compile)
       (package-initialize)
       (require 'use-package)
       (when vcupp-batch-refresh-contents
@@ -209,6 +238,7 @@ Defaults to t."
             (message "Installing packages...")
             (vcupp-batch-load-config)
             (vcupp-install-packages--sync-vc-specs)
+            (vcupp-install-packages--install-desired-vc-packages)
             (vcupp-install-packages--reinstall-changed-vc-urls)
             (vcupp-install-packages--attach-vc-packages-to-branches)
             (when do-upgrade
