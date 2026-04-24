@@ -78,6 +78,7 @@ which is a no-op when it is set."
     (unless (native-comp-available-p)
       (user-error "Native compilation is not available in this Emacs"))
     (vcupp-batch-run-setup)
+    (setq package-install-upgrade-built-in t)
     (package-initialize)
     (let ((compile-angel-available
            (vcupp-native-comp--ensure-compile-angel args)))
