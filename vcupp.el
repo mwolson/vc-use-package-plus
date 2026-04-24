@@ -1,7 +1,7 @@
 ;;; vcupp.el --- Better use-package :vc support -*- lexical-binding: t -*-
 
 ;; Author: Michael Olson
-;; Version: 0.3.0
+;; Version: 0.3.1
 ;; Package-Requires: ((emacs "30.1") (use-package "2.4"))
 ;; Keywords: convenience, lisp
 ;; SPDX-License-Identifier: GPL-3.0-or-later
